@@ -11,11 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '6.0.x' # SDK Version to use.
+          dotnet-version: '6.0.x' 
           source-url: https://nuget.pkg.github.com/<owner>/index.json
         env:
           NUGET_AUTH_TOKEN: ${{secrets.NUGET_TOKEN}}
@@ -24,22 +25,22 @@ jobs:
         run: dotnet pack --configuration Release src/Manifesto.AspNet /p:Version=${{github.ref_name}}
       - name: Create Release
         id: create_release
-        uses: actions/create-release
+        uses: joutvhu/create-release@v1 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: true
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
           prerelease: false
       - name: Upload Release Asset
         id: upload-release-asset 
-        uses: actions/upload-release-asset
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
-          asset_path: ./src/Manifesto.AspNet/bin/Release/Manifesto.AspNet.nupkg
-          asset_name: Manifesto.AspNet.nupkg
+          asset_path: src/Manifesto.AspNet/bin/Release/Manifesto.AspNet.${{github.ref_name}}.nupkg
+          asset_name: Manifesto.AspNet.${{ github.ref_name }}.nupkg
           asset_content_type: application/octet-stream
       
