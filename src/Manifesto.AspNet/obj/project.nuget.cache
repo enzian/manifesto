@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "dgSpecHash": "EiyhgMERt2YSRRj80gtPJ2/fFmye/LEv6yE4mn8Op0gIzFYF4aMIUHTe+v0jyOBPlnzZEzAFpPAfuGT0BTk7jw==",
+  "success": true,
+  "projectFilePath": "/Users/michael.ingold/Sources/github.com/enzian/manifesto/src/Manifesto.AspNet/Manifesto.AspNet.csproj",
+  "expectedPackageFiles": [
+    "/Users/michael.ingold/.nuget/packages/dotnet-etcd/6.0.1/dotnet-etcd.6.0.1.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/google.protobuf/3.21.9/google.protobuf.3.21.9.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/grpc.core.api/2.49.0/grpc.core.api.2.49.0.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/grpc.net.client/2.49.0/grpc.net.client.2.49.0.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/grpc.net.common/2.49.0/grpc.net.common.2.49.0.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.aspnetcore.jsonpatch/7.0.9/microsoft.aspnetcore.jsonpatch.7.0.9.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.aspnetcore.mvc.newtonsoftjson/7.0.9/microsoft.aspnetcore.mvc.newtonsoftjson.7.0.9.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.csharp/4.7.0/microsoft.csharp.4.7.0.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.extensions.dependencyinjection/7.0.0/microsoft.extensions.dependencyinjection.7.0.0.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/7.0.0/microsoft.extensions.dependencyinjection.abstractions.7.0.0.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.extensions.logging.abstractions/3.0.3/microsoft.extensions.logging.abstractions.3.0.3.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/newtonsoft.json/13.0.1/newtonsoft.json.13.0.1.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/newtonsoft.json.bson/1.0.2/newtonsoft.json.bson.1.0.2.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/system.memory/4.5.3/system.memory.4.5.3.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.netcore.app.ref/7.0.5/microsoft.netcore.app.ref.7.0.5.nupkg.sha512",
+    "/Users/michael.ingold/.nuget/packages/microsoft.aspnetcore.app.ref/7.0.5/microsoft.aspnetcore.app.ref.7.0.5.nupkg.sha512"
+  ],
+  "logs": []
+}

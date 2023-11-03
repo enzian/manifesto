@@ -1,0 +1,13 @@
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.csproj.AssemblyReference.cache
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.GeneratedMSBuildEditorConfig.editorconfig
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.AssemblyInfoInputs.cache
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.AssemblyInfo.cs
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.csproj.CoreCompileInputs.cache
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.sourcelink.json
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/bin/Debug/net8.0/Manifesto.AspNet.deps.json
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/bin/Debug/net8.0/Manifesto.AspNet.dll
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/bin/Debug/net8.0/Manifesto.AspNet.pdb
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.dll
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/refint/Manifesto.AspNet.dll
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/Manifesto.AspNet.pdb
+/Users/michael.ingold/Sources/github.com/enzian/stockr/src/Manifesto.AspNet/obj/Debug/net8.0/ref/Manifesto.AspNet.dll
