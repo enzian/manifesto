@@ -7,6 +7,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B53EF608-7CB
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Manifesto.AspNet", "src\Manifesto.AspNet\Manifesto.AspNet.csproj", "{0C475236-CA51-4464-A7CC-59BF5BEC0BF7}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{6EF8CA57-A919-40DF-A47F-54CF98B0FEE7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "logistics", "logistics", "{DA6233A4-48AF-4028-B3A5-0F36A0D68F63}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "logistics-api", "samples\logistics\api\logistics-api.csproj", "{8229042C-BDBC-46C3-AC34-694B9694FB78}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "controller-fsharp", "samples\logistics\controller-fsharp\controller-fsharp.fsproj", "{B003EE8B-DECD-4BB6-A4CA-40BAE8F6F263}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Manifesto.Client.Fsharp", "src\Manifesto.Client.Fsharp\Manifesto.Client.Fsharp.fsproj", "{36905F96-D18B-4E88-9D04-8B046354D50E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,8 +30,24 @@ Global
 		{0C475236-CA51-4464-A7CC-59BF5BEC0BF7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0C475236-CA51-4464-A7CC-59BF5BEC0BF7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0C475236-CA51-4464-A7CC-59BF5BEC0BF7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8229042C-BDBC-46C3-AC34-694B9694FB78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8229042C-BDBC-46C3-AC34-694B9694FB78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8229042C-BDBC-46C3-AC34-694B9694FB78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8229042C-BDBC-46C3-AC34-694B9694FB78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B003EE8B-DECD-4BB6-A4CA-40BAE8F6F263}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B003EE8B-DECD-4BB6-A4CA-40BAE8F6F263}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B003EE8B-DECD-4BB6-A4CA-40BAE8F6F263}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B003EE8B-DECD-4BB6-A4CA-40BAE8F6F263}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36905F96-D18B-4E88-9D04-8B046354D50E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36905F96-D18B-4E88-9D04-8B046354D50E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36905F96-D18B-4E88-9D04-8B046354D50E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36905F96-D18B-4E88-9D04-8B046354D50E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{0C475236-CA51-4464-A7CC-59BF5BEC0BF7} = {B53EF608-7CBC-424B-B356-97F94B18F6C2}
+		{DA6233A4-48AF-4028-B3A5-0F36A0D68F63} = {6EF8CA57-A919-40DF-A47F-54CF98B0FEE7}
+		{8229042C-BDBC-46C3-AC34-694B9694FB78} = {DA6233A4-48AF-4028-B3A5-0F36A0D68F63}
+		{B003EE8B-DECD-4BB6-A4CA-40BAE8F6F263} = {DA6233A4-48AF-4028-B3A5-0F36A0D68F63}
+		{36905F96-D18B-4E88-9D04-8B046354D50E} = {B53EF608-7CBC-424B-B356-97F94B18F6C2}
 	EndGlobalSection
 EndGlobal
