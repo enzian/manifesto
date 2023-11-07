@@ -64,15 +64,7 @@ let x =
                     |> Seq.filter (fun x -> locationIds |> Seq.contains x.spec.Location |> not)
                     |> Seq.map (fun x -> x.metadata.name)
 
-                printfn "Found phantom stock: %A" phantomStock),
-            (fun e -> 
-                eprintfn "failed: %A" e
-                cts.Cancel |> ignore
-                sem.Release |> ignore),
-            (fun () ->
-                printf "combiner completed"
-                cts.Cancel |> ignore
-                sem.Release |> ignore)
+                printfn "Phantom Stocks: %A" phantomStock)
         )
 
 Console.CancelKeyPress.Add(fun _ ->

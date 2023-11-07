@@ -67,11 +67,13 @@ let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (cts: Cancell
 
         let rec readEvent (observer: IObserver<_>) (streamReadr: StreamReader) cts =
             async {
-                try let! line = streamReadr.ReadLineAsync(cts).AsTask() |> Async.AwaitTask
+                try 
+                    let! line = streamReadr.ReadLineAsync(cts).AsTask() |> Async.AwaitTask
                     observer.OnNext(line)
+                    return! readEvent observer streamReadr cts
                 with e ->
                     observer.OnError(e)
-                return! readEvent observer streamReadr cts
+                    observer.OnCompleted ()
             }
 
         let lineReaderObservable =
