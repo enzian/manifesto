@@ -87,7 +87,6 @@ public class ManifestV1WatchController : ControllerBase
         CancellationToken cancellationToken)
     {
         {
-            var revision = response.Header.Revision;
             foreach (var e in response.Events)
             {
                 if (e.Type != EventType.Delete)
