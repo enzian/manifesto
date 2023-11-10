@@ -93,23 +93,15 @@ public class ManifestV1WatchController : ControllerBase
                 if (e.Type != EventType.Delete)
                 {
                     var manifest = JsonSerializer.Deserialize<Manifest>(e.Kv.Value.ToStringUtf8());
-                    // var metadata = manifest.Metadata is not null ? manifest.Metadata : null;
-                    // metadata.Revision = revision.ToString();
-                    var revisedManifest = manifest with
-                    {
-                        Metadata = manifest.Metadata with
-                        {
-                            Revision = revision.ToString()
-                        }
-                    };
+                    var revisedManifest = manifest.AddRevisionFromEtcdKv(e.Kv);
 
                     if (Selectors.Validate(filters, manifest.Metadata.Labels ?? new Dictionary<string, string>()))
                     {
                         var watchEvent = e switch
                         {
-                            { Type: EventType.Put, Kv.Version: 1 } => new WatchEvent { Type = "ADDED", Object = manifest },
-                            { Type: EventType.Put, Kv.Version: > 1 } => new WatchEvent { Type = "MODIFIED", Object = manifest },
-                            { Type: EventType.Delete } => new WatchEvent { Type = "DELETED", Object = manifest },
+                            { Type: EventType.Put, Kv.Version: 1 } => new WatchEvent { Type = "ADDED", Object = revisedManifest },
+                            { Type: EventType.Put, Kv.Version: > 1 } => new WatchEvent { Type = "MODIFIED", Object = revisedManifest },
+                            { Type: EventType.Delete } => new WatchEvent { Type = "DELETED", Object = revisedManifest },
                         };
 
                         await context.Response.WriteAsync($"{JsonSerializer.Serialize(watchEvent)}{Environment.NewLine}", cancellationToken);
