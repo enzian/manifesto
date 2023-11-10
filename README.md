@@ -44,3 +44,5 @@ dotnet run
 The API server should now start listeing on port 5000. This can vary depending on the availability of ports on your machine.
 
 The API can be used directly by using a tool like Postman. There is also samples of controllers that fetch and watch state in order to reconcile it.
+
+While most samples are written in C# or F#, Manifesto can be used by any language to implement statefull applications.

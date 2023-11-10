@@ -5,6 +5,7 @@ open System.Threading
 open locations
 open api
 open FSharp.Control.Reactive
+open utilities
 
 // http client to access the Manifesto APIs
 let client = new HttpClient()
@@ -21,10 +22,15 @@ let cts = new CancellationTokenSource()
 let sem = new SemaphoreSlim(0)
 
 // run the watch command that reads changes from the resource API
-let stocksWatch = stockApi.Watch cts.Token |> Async.RunSynchronously
 let stocks = stockApi.List
-let locationsWatch = locationsApi.Watch cts.Token |> Async.RunSynchronously
+let stocksRevision = stocks |> mostRecentRevision
+let stocksWatch = stockApi.WatchFromRevision stocksRevision cts.Token |> Async.RunSynchronously
+printfn "Starting to listen for stock changes starting at revision %i" stocksRevision
+
 let locations = locationsApi.List
+let locationRevision = locations |> mostRecentRevision
+printfn "Starting to listen for location changes starting at revision %i" locationRevision
+let locationsWatch = locationsApi.WatchFromRevision locationRevision cts.Token |> Async.RunSynchronously
 
 let appendToDict<'T when 'T :> Manifest> (d: Map<string, 'T>) (e: Event<'T>) =
     match e with
@@ -59,12 +65,36 @@ let x =
             (fun (locs, stocks) ->
                 let locationIds = locs.Values |> Seq.map (fun x -> x.spec.Id)
 
-                let phantomStock =
+                let phantomStocks =
                     stocks.Values
                     |> Seq.filter (fun x -> locationIds |> Seq.contains x.spec.Location |> not)
-                    |> Seq.map (fun x -> x.metadata.name)
 
-                printfn "Phantom Stocks: %A" phantomStock)
+                printfn "Phantom Stocks: %A" (phantomStocks |> Seq.map (fun x -> x.metadata.name))
+
+                let createLocation loc =
+                    let res = 
+                        locationsApi.Put {
+                            metadata = {
+                                name = loc
+                                ``namespace``= None
+                                labels = Some ( [
+                                    ("locations.stockr.io/autocreated","true")
+                                    ("locations.stockr.io/createdAt", DateTimeOffset.UtcNow.ToString("o"))
+                                    ] |> Map.ofSeq )
+                                annotations = None
+                                revision = None
+                            }
+                            spec = { Id = loc }
+                        }
+
+                    match res with 
+                    | Ok () -> printfn "created locations %A" loc
+                    | Error e -> printfn "failed to create location %A" e
+                    res
+
+                for phantomStock in phantomStocks do
+                    createLocation phantomStock.spec.Location |> ignore
+                )
         )
 
 Console.CancelKeyPress.Add(fun _ ->

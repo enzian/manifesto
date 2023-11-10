@@ -53,15 +53,21 @@ type ManifestApi<'T when 'T :> Manifest> =
     abstract List: seq<'T>
     abstract FilterByLabel: (KeyIs seq -> 'T seq)
     abstract Watch: (CancellationToken -> Async<IObservable<Event<'T>>>)
+    abstract WatchFromRevision: (uint -> CancellationToken -> Async<IObservable<Event<'T>>>)
     abstract Put: ('T -> Result<unit, exn>)
     abstract Delete: (string -> Result<unit, exn>)
 
 let jsonOptions = new JsonSerializerOptions()
 jsonOptions.PropertyNameCaseInsensitive <- true
 
-let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (cts: CancellationToken) =
+let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uint option) (cts: CancellationToken) =
     async {
-        let! responseSteam = client.GetStreamAsync(Path.Combine("watch/", uri)) |> Async.AwaitTask
+        let path = 
+            match revision with 
+            | Some r -> Path.Combine ("watch/", uri, (sprintf "?revision=%i" r)) 
+            | None -> Path.Combine("watch/", uri)
+        
+        let! responseSteam = client.GetStreamAsync(path, cts) |> Async.AwaitTask
 
         let streamReader = new StreamReader(responseSteam)
 
@@ -166,6 +172,7 @@ let ManifestsFor<'T when 'T :> Manifest> (httpClient: HttpClient) (path: string)
         member _.Get key = fetchWithKey httpClient path key
         member _.List = listWithKey httpClient path
         member _.FilterByLabel = listWithFilter httpClient path
-        member _.Watch = watchResource httpClient path
+        member _.Watch = watchResource httpClient path None
+        member _.WatchFromRevision = (fun r cts ->  watchResource httpClient path (Some r) cts)
         member _.Put = putManifest httpClient path
         member _.Delete = dropManifest httpClient path }

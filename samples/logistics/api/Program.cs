@@ -3,8 +3,6 @@ using Manifesto.AspNet;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 builder.Services.AddManifesto()
     .AddKeySpaces((string kind, string version, string group) => {
         return  (kind, group, version) switch {
@@ -17,8 +15,6 @@ builder.Services.AddManifesto()
 });
 
 var app = builder.Build();
-
-// app.UseHttpsRedirection();
 
 app.UseAuthorization();
 
