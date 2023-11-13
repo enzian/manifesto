@@ -2,7 +2,7 @@ module locations
 
 open api
 
-type Sandbox = { flavour: string; validUnit: string }
+type Sandbox = { flavour: string; validUntil: string }
 
 type SandboxStatus =
     { provisioning: string
