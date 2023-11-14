@@ -85,8 +85,13 @@ public static class Selectors
 
     public static bool Validate(IEnumerable<Selector> selectors, IDictionary<string, string> labels)
     {
-        return selectors.Any() && labels is not null
-        ? selectors.Select(x => x switch
+        if (selectors is null || !selectors.Any())
+        {
+            return true;
+        }
+
+        return labels is not null
+        ? selectors.All(x => x switch
             {
                 Selector.Equality sel => labels.ContainsKey(sel.key) && labels[sel.key] == sel.value,
                 Selector.Inequality sel => labels.ContainsKey(sel.key) && labels[sel.key] != sel.value,
@@ -96,7 +101,7 @@ public static class Selectors
                 Selector.NotExists sel => !labels.ContainsKey(sel.key),
                 Selector.None => true,
                 _ => false
-            }).All(x => x == true)
+            })
         : false;
     }
 }
