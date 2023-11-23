@@ -71,16 +71,17 @@ let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uin
 
         let streamReader = new StreamReader(responseSteam)
 
-        let rec readEvent (observer: IObserver<_>) (streamReadr: StreamReader) cts =
+        let rec readEvent (observer: IObserver<_>) (streamReadr: StreamReader) (cts: CancellationToken) =
             async {
+                    
                 try 
-                    let! line = streamReadr.ReadLineAsync(cts).AsTask() |> Async.AwaitTask
-                    observer.OnNext(line)
-                    return! readEvent observer streamReadr cts
-                with e ->
-                    observer.OnError(e)
-                    observer.OnCompleted ()
-            }
+                    while not cts.IsCancellationRequested do
+                        let! line = streamReadr.ReadLineAsync(cts).AsTask() |> Async.AwaitTask
+                        observer.OnNext(line)
+                    with e ->
+                        observer.OnError(e)
+                        observer.OnCompleted ()
+                }
 
         let lineReaderObservable =
             { new IObservable<_> with

@@ -24,7 +24,6 @@ public static class WebApplicationBuilderExtensions
             {
                 options.InputFormatters.Insert(0, MyJPIF.GetJsonPatchInputFormatter());
             })
-            // .AddNewtonsoftJson()
             .PartManager.ApplicationParts.Add(new AssemblyPart(assembly));
         services.AddKeySpaces((string kind, string version, string group) => $"{group}/{version}/{kind}");
 
