@@ -115,6 +115,17 @@ module api =
                 let revisionedManifest = {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
 
                 (revisionedManifest |> json) next ctx
+        
+        let ManifestDeleteHandler keyspaceFactory ((group: string), (version: string), (typ: string), (name: string)) : HttpHandler  =
+            fun (next : HttpFunc) (ctx : HttpContext) ->
+                let client = ctx.RequestServices.GetService<IEtcdClient>()
+                let keyspace = keyspaceFactory group version typ
+                let key = sprintf "%s/%s" keyspace name
+                let deleteResult = client.Delete(key)
+                
+                (if deleteResult.Deleted > 0 then text "deleted" 
+                    else RequestErrors.notFound ("Not Found" |> text)
+                ) next ctx
 
         let endpoints keyspaceFactory =
             subRoute "/api/v1"
@@ -125,7 +136,7 @@ module api =
                             routef "/watch/%s/%s/%s" (fun (group, version, kind) -> text (sprintf "watch %s %s %s" group version kind))
                     ]
                     PUT >=> routef "/%s/%s/%s" (ManifestCreationHandler keyspaceFactory)
-                    DELETE >=> routef "/%s/%s/%s/%s" (fun (group, version, kind, name) -> text (sprintf "delete %s %s %s %s" group version kind name))
+                    DELETE >=> routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaceFactory)
                     ])
 
         let notFoundHandler = "Not Found" |> text |> RequestErrors.notFound
