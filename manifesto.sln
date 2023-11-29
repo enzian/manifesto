@@ -25,7 +25,9 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "sandbox-fsharp", "samples\s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Manifest.Client.Test", "src\Manifest.Client.Test\Manifest.Client.Test.csproj", "{980E8059-2C38-41A8-BDC8-8A0D09ED28A0}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Manifest.Aspnet.Fsharp", "src\Manifest.Aspnet.Fsharp\Manifest.Aspnet.Fsharp.fsproj", "{DA38150E-AF01-4ACF-925C-1D8FF288167E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Manifesto.AspNet.Fsharp", "src\Manifesto.AspNet.Fsharp\Manifesto.AspNet.Fsharp.fsproj", "{DA38150E-AF01-4ACF-925C-1D8FF288167E}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "api-fsharp", "samples\logistics\api-fsharp\api-fsharp.fsproj", "{2475A510-B491-40A5-A4B7-F16F4CC6D040}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -68,6 +70,10 @@ Global
 		{DA38150E-AF01-4ACF-925C-1D8FF288167E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA38150E-AF01-4ACF-925C-1D8FF288167E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA38150E-AF01-4ACF-925C-1D8FF288167E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2475A510-B491-40A5-A4B7-F16F4CC6D040}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2475A510-B491-40A5-A4B7-F16F4CC6D040}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2475A510-B491-40A5-A4B7-F16F4CC6D040}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2475A510-B491-40A5-A4B7-F16F4CC6D040}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{0C475236-CA51-4464-A7CC-59BF5BEC0BF7} = {B53EF608-7CBC-424B-B356-97F94B18F6C2}
@@ -80,5 +86,6 @@ Global
 		{A29819D0-71A0-48B1-865B-AA8E2DF1D474} = {1FA7A7FA-0AA2-417D-AD1D-4484BFCB1FE7}
 		{980E8059-2C38-41A8-BDC8-8A0D09ED28A0} = {B53EF608-7CBC-424B-B356-97F94B18F6C2}
 		{DA38150E-AF01-4ACF-925C-1D8FF288167E} = {B53EF608-7CBC-424B-B356-97F94B18F6C2}
+		{2475A510-B491-40A5-A4B7-F16F4CC6D040} = {DA6233A4-48AF-4028-B3A5-0F36A0D68F63}
 	EndGlobalSection
 EndGlobal

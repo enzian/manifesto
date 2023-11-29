@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <RootNamespace>api_fsharp</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
@@ -10,7 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Giraffe" Version="6.2.0" />
+    <ProjectReference Include="..\..\..\src\Manifesto.AspNet.FSharp\Manifesto.AspNet.FSharp.fsproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="dotnet-etcd" Version="6.0.1" />
   </ItemGroup>
 
 </Project>
