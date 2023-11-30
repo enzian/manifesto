@@ -26,9 +26,11 @@ module controllers =
                 results.Kvs
                 |> Seq.map (
                     fun kv ->
-                        kv.Value.ToByteArray() 
-                        |> System.Text.Encoding.UTF8.GetString
-                        |> JsonSerializer.Deserialize<Manifest>
+                        let manifest = 
+                            kv.Value.ToByteArray() 
+                            |> System.Text.Encoding.UTF8.GetString
+                            |> JsonSerializer.Deserialize<Manifest>
+                        {manifest with metadata.revision = Some (kv.ModRevision.ToString())}
                     )
             
             let filteredManifests =

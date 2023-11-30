@@ -25,7 +25,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "sandbox-fsharp", "samples\s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Manifest.Client.Test", "src\Manifest.Client.Test\Manifest.Client.Test.csproj", "{980E8059-2C38-41A8-BDC8-8A0D09ED28A0}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Manifesto.AspNet.Fsharp", "src\Manifesto.AspNet.Fsharp\Manifesto.AspNet.Fsharp.fsproj", "{DA38150E-AF01-4ACF-925C-1D8FF288167E}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Manifesto.AspNet.FSharp", "src\Manifesto.AspNet.FSharp\Manifesto.AspNet.FSharp.fsproj", "{DA38150E-AF01-4ACF-925C-1D8FF288167E}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "api-fsharp", "samples\logistics\api-fsharp\api-fsharp.fsproj", "{2475A510-B491-40A5-A4B7-F16F4CC6D040}"
 EndProject

@@ -6,7 +6,7 @@
   <ItemGroup>
     <Compile Include="ApiV1Models.fs" />
     <Compile Include="ApiV1Controllers.fs" />
-    <Compile Include="Library.fs" />
+    <Compile Include="Hosting.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="dotnet-etcd" Version="6.0.1" />

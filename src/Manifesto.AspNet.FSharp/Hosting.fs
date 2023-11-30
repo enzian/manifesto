@@ -11,7 +11,7 @@ open Manifesto.AspNet.FSharp.api.v1.controllers
 
 module hosting =
     let endpoints keyspaceFactory =
-        subRoute "/api/v1"
+        subRoute "/apis/v1"
             (choose [
                 GET >=> 
                     choose [
