@@ -21,11 +21,11 @@ module Program =
             | _ -> ""
 
         let builder = WebApplication.CreateBuilder(args)
-        builder.Services |> api.v1.configureServices |> ignore
+        builder.Services |> hosting.configureServices |> ignore
         builder.Services.AddSingleton<IEtcdClient>(new EtcdClient("http://localhost:2379")) |> ignore
 
         let app = builder.Build()
-        app |> api.v1.configureApp keyspace |> ignore
+        app |> hosting.configureApp keyspace |> ignore
         
         app.Run()
 

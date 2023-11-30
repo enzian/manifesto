@@ -4,6 +4,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="ApiV1Models.fs" />
+    <Compile Include="ApiV1Controllers.fs" />
     <Compile Include="Library.fs" />
   </ItemGroup>
   <ItemGroup>
