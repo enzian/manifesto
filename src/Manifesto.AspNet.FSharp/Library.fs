@@ -8,10 +8,11 @@ open System.Text.Json
 open System.Text.Json.Serialization
 open dotnet_etcd.interfaces
 open System.Text.RegularExpressions
+open System.Collections.Generic
+open System
 
 module api =
     module v1 =
-        open System.Collections.Generic
 
         type Metadata =
             { name: string
@@ -43,6 +44,11 @@ module api =
             | DoesNotExist of string
             | In of string * string seq
             | NotIn of string * string seq
+        
+        type Event = {
+            eventType: string
+            object: Manifest
+        }
         
         let stringToConditions (s: string) =
             s.Split(',') 
@@ -126,6 +132,55 @@ module api =
                 (if deleteResult.Deleted > 0 then text "deleted" 
                     else RequestErrors.notFound ("Not Found" |> text)
                 ) next ctx
+        
+        
+        let ManifestWatchHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
+            fun (next : HttpFunc) (ctx : HttpContext) ->
+                let client = ctx.RequestServices.GetService<IEtcdClient>()
+                let keyspace = keyspaceFactory group version typ
+
+                let handle (resp: Etcdserverpb.WatchResponse) = 
+                    if resp.Created = true then
+                        ctx.Response.StatusCode <- 200
+                        ctx.SetContentType "text/event-stream"
+                        ctx.Response.StartAsync() |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+                        ctx.Response.Body.FlushAsync() |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+                    else
+                        let apiEvents =  
+                            resp.Events.AsReadOnly()
+                            |> Seq.map (
+                                fun event ->
+                                    match event.Type with
+                                    | Mvccpb.Event.Types.EventType.Put ->
+                                        let putAction = if event.Kv.CreateRevision < event.Kv.ModRevision then "CREATED" else "UPDATED"
+                                        let manifest = event.Kv.Value.ToByteArray() |> System.Text.Encoding.UTF8.GetString |> JsonSerializer.Deserialize<Manifest>
+                                        let versionedManifest = {manifest with metadata.revision = Some (event.Kv.ModRevision.ToString())}
+                                        {eventType = putAction; object = versionedManifest}
+                                    | Mvccpb.Event.Types.EventType.Delete ->
+                                        let manifest = event.PrevKv.Value.ToByteArray() |> System.Text.Encoding.UTF8.GetString |> JsonSerializer.Deserialize<Manifest>
+                                        let versionedManifest = {manifest with metadata.revision = Some (event.Kv.ModRevision.ToString())}
+                                        {eventType = "DELETED"; object = versionedManifest}
+                                    | _ -> failwith "Unknown event type"
+                            )
+                        let filteredEvents =
+                            match ctx.GetQueryStringValue "filter" with
+                            | Error msg -> apiEvents
+                            | Ok q ->
+                                let conditions = stringToConditions q
+                                apiEvents |> Seq.filter (fun e -> matchConditions conditions (e.object.metadata.labels |> Option.defaultValue Map.empty)) 
+                        
+                        for event in filteredEvents do
+                            let serializedJson = (sprintf "%s%s" (JsonSerializer.Serialize event) Environment.NewLine)
+                            ctx.Response.WriteAsync(serializedJson, ctx.RequestAborted) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+
+                try
+                    client.WatchRangeAsync([|keyspace|], handle, cancellationToken = ctx.RequestAborted)
+                        |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+                    ("" |> text) next ctx
+                with
+                | :? OperationCanceledException -> 
+                    ("completed" |> text |> Successful.OK) next ctx
+                
 
         let endpoints keyspaceFactory =
             subRoute "/api/v1"
@@ -133,7 +188,7 @@ module api =
                     GET >=> 
                         choose [
                             routef "/%s/%s/%s" (ManifestListHandler keyspaceFactory)
-                            routef "/watch/%s/%s/%s" (fun (group, version, kind) -> text (sprintf "watch %s %s %s" group version kind))
+                            routef "/watch/%s/%s/%s" (ManifestWatchHandler keyspaceFactory)
                     ]
                     PUT >=> routef "/%s/%s/%s" (ManifestCreationHandler keyspaceFactory)
                     DELETE >=> routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaceFactory)
