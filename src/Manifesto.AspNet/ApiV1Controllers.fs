@@ -63,6 +63,38 @@ module controllers =
                 else RequestErrors.notFound ("Not Found" |> text)
             ) next ctx
     
+    
+    let ManifestBatchDeleteHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
+        fun (next : HttpFunc) (ctx : HttpContext) ->
+            let client = ctx.RequestServices.GetService<IEtcdClient>()
+            let keyspace = keyspaceFactory group version typ
+            let results = client.GetRange(keyspace)
+            
+            let manifests = 
+                results.Kvs
+                |> Seq.map (
+                    fun kv ->
+                        let manifest = 
+                            kv.Value.ToByteArray() 
+                            |> System.Text.Encoding.UTF8.GetString
+                            |> JsonSerializer.Deserialize<Manifest>
+                        {manifest with metadata.revision = Some (kv.ModRevision.ToString())}
+                    )
+            
+            let filteredManifests =
+                match ctx.GetQueryStringValue "filter" with
+                | Error msg -> manifests
+                | Ok q ->
+                    let conditions = stringToConditions q
+                    manifests |> Seq.filter (fun m -> matchConditions conditions (m.metadata.labels |> Option.defaultValue Map.empty))
+            
+            let deleteResult = 
+                filteredManifests
+                |> Seq.map (fun m -> client.Delete(sprintf "%s/%s" keyspace m.metadata.name))
+                |> Seq.fold (fun acc x -> acc + x.Deleted) 0L
+            
+            (sprintf "deleted %i resources" deleteResult |> text) next ctx
+    
     let watchReponseHandler (ctx: HttpContext) (resp: Etcdserverpb.WatchResponse) = 
         if resp.Created = true then
             ctx.Response.StatusCode <- 200
@@ -131,5 +163,9 @@ module controllers =
                         routef "/watch/%s/%s/%s/" (ManifestWatchHandler keyspaces)
                 ]
                 PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaces)
-                DELETE >=> routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaces)
+                DELETE >=> 
+                    choose [
+                        routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaces)
+                        routef "/%s/%s/%s/" (ManifestBatchDeleteHandler keyspaces)
+                    ]
                 ])

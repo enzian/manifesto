@@ -95,7 +95,6 @@ let createTransportsForProduction
                         revision = None
                     }
                     spec = { 
-                        id = transportId
                         material = bomline.material
                         quantity = bomline.quantity 
                         source = stocks |> Seq.tryFind (fun x -> x.spec.Material = bomline.material) |> Option.map (fun x -> x.spec.Location)

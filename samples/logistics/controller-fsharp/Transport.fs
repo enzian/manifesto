@@ -2,7 +2,6 @@ module logistics
 open api
 
 type Transport = {
-    id : string
     material: string
     quantity: string
     source: string option
