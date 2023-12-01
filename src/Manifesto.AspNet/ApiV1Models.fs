@@ -1,4 +1,4 @@
-namespace Manifesto.AspNet.FSharp.api.v1
+namespace Manifesto.AspNet.api.v1
 
 open System.Text.Json
 open System.Text.Json.Serialization
@@ -42,23 +42,25 @@ module models =
         if m.Success then Some(List.tail [ for g in m.Groups -> g.Value ])
         else None
 
+    let conditionSplitRegex = new Regex(@"(?![^)(]*\([^)(]*?\)\)),(?![^\(]*\))")
+
     let stringToConditions (s: string) =
-        s.Split(',') 
+        conditionSplitRegex.Split(s)
         |> Array.map (fun s -> s.Trim())
         |> Array.map (
             fun s ->
                 match s with
-                | Regex "^([\\w-/\\.]+)\\s*=\\s*(.+)$" [key; value]
+                | Regex @"^([\w-/\.]+)\s*=\s*(.+)$" [key; value]
                     -> Some (Equals (key, value))
-                | Regex "^([\\w-/\\.]+)\\s*!=\\s*(.+)$" [key; value] 
+                | Regex @"^([\w-/\.]+)\s*!=\s*(.+)$" [key; value] 
                     -> Some (NotEquals (key, value))
-                | Regex "^([\\w-/\\.]+)$" [key] 
+                | Regex @"^([\w\-/\.]+)$" [key] 
                     -> Some (Exists key)
-                | Regex "^!([\\w-/\\.]+)$" [key] 
+                | Regex @"^\s*!\s*([\w-/\.]+)$" [key] 
                     -> Some (DoesNotExist key)
-                | Regex "^([\\w-/\\.]+)\\s*in\\s*\\((.*)\\)$" [key; values] 
+                | Regex @"^([\w-/\.]+)\s*in\s*\((.*)\)$" [key; values] 
                     -> Some (In (key, values.Split(',') |> Array.map _.Trim() |> Array.toSeq))
-                | Regex "^([\\w-/\\.]+)\\s*notIn\\s*\\((.*)\\)$" [key; values] 
+                | Regex @"^([\w-/\.]+)\s*notin\s*\((.*)\)$" [key; values] 
                     -> Some (NotIn (key, values.Split(',') |> Array.map _.Trim() |> Array.toSeq))
                 | _ -> None
         )

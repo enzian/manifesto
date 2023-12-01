@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Manifesto.AspNet\Manifesto.AspNet.csproj" />
+    <ProjectReference Include="..\..\..\src\Manifesto.AspNet\Manifesto.AspNet.fsproj" />
   </ItemGroup>
 
 </Project>

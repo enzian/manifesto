@@ -1,4 +1,4 @@
-namespace Manifesto.AspNet.FSharp.api.v1
+namespace Manifesto.AspNet.api.v1
 
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
@@ -7,13 +7,13 @@ open System.Text.Json
 open dotnet_etcd.interfaces
 open System.Collections.Generic
 open System
+open Etcdserverpb
+open Google.Protobuf
+open dotnet_etcd
 
-open models
 
 module controllers =
-    open Etcdserverpb
-    open Google.Protobuf
-    open dotnet_etcd
+    open models
     let ManifestListHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
@@ -120,4 +120,15 @@ module controllers =
             with
             | :? OperationCanceledException -> 
                 ("completed" |> text |> Successful.OK) next ctx
-            
+    
+    let endpoints keyspaces =
+        subRoute "/apis"
+            (choose [
+                GET >=> 
+                    choose [
+                        routef "/%s/%s/%s/" (ManifestListHandler keyspaces)
+                        routef "/watch/%s/%s/%s/" (ManifestWatchHandler keyspaces)
+                ]
+                PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaces)
+                DELETE >=> routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaces)
+                ])

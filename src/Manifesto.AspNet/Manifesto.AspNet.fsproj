@@ -16,11 +16,14 @@
     <Compile Include="ApiV1Controllers.fs" />
     <Compile Include="Hosting.fs" />
   </ItemGroup>
+
+  <ItemGroup>                                                                                                                         
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />                                                                         
+  </ItemGroup> 
   
   <ItemGroup>
     <PackageReference Include="dotnet-etcd" Version="6.0.1" />
     <PackageReference Include="Giraffe" Version="6.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.App" Version="2.2.8" />
   </ItemGroup>
   
   <ItemGroup>

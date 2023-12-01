@@ -11,7 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Manifesto.AspNet.FSharp\Manifesto.AspNet.FSharp.fsproj" />
+    <ProjectReference Include="..\..\..\src\Manifesto.AspNet\Manifesto.AspNet.fsproj" />
   </ItemGroup>
 
   <ItemGroup>
