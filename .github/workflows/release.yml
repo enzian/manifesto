@@ -22,7 +22,7 @@ jobs:
           NUGET_AUTH_TOKEN: ${{secrets.NUGET_TOKEN}}
       - run: dotnet build --configuration Release
       - name: Create the package
-        run: dotnet pack --configuration Release src/Manifesto.AspNet /p:Version=${{github.ref_name}}
+        run: dotnet pack --configuration Release /p:Version=${{github.ref_name}}
       - name: Create Release
         id: create_release
         uses: joutvhu/create-release@v1 
@@ -34,7 +34,7 @@ jobs:
           draft: false
           prerelease: false
       - name: Upload Release Asset
-        id: upload-release-asset 
+        id: upload-release-asset-1 
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

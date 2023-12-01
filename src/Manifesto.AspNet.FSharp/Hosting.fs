@@ -11,14 +11,14 @@ open Manifesto.AspNet.FSharp.api.v1.controllers
 
 module hosting =
     let endpoints keyspaceFactory =
-        subRoute "/apis/v1"
+        subRoute "/apis"
             (choose [
                 GET >=> 
                     choose [
-                        routef "/%s/%s/%s" (ManifestListHandler keyspaceFactory)
-                        routef "/watch/%s/%s/%s" (ManifestWatchHandler keyspaceFactory)
+                        routef "/%s/%s/%s/" (ManifestListHandler keyspaceFactory)
+                        routef "/watch/%s/%s/%s/" (ManifestWatchHandler keyspaceFactory)
                 ]
-                PUT >=> routef "/%s/%s/%s" (ManifestCreationHandler keyspaceFactory)
+                PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaceFactory)
                 DELETE >=> routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaceFactory)
                 ])
 

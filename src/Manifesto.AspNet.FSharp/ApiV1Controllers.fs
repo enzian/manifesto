@@ -1,6 +1,5 @@
 namespace Manifesto.AspNet.FSharp.api.v1
-        
-open Microsoft.AspNetCore.Builder
+
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Microsoft.AspNetCore.Http
@@ -8,14 +7,13 @@ open System.Text.Json
 open dotnet_etcd.interfaces
 open System.Collections.Generic
 open System
-open System.Text.Json
-open System.Text.Json.Serialization
-open System.Text.RegularExpressions
-open System.Collections.Generic
 
 open models
 
 module controllers =
+    open Etcdserverpb
+    open Google.Protobuf
+    open dotnet_etcd
     let ManifestListHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
@@ -65,48 +63,58 @@ module controllers =
                 else RequestErrors.notFound ("Not Found" |> text)
             ) next ctx
     
+    let watchReponseHandler (ctx: HttpContext) (resp: Etcdserverpb.WatchResponse) = 
+        if resp.Created = true then
+            ctx.Response.StatusCode <- 200
+            ctx.SetContentType "text/event-stream"
+            ctx.Response.StartAsync() |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+            ctx.Response.Body.FlushAsync() |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+        else
+            let apiEvents =  
+                resp.Events.AsReadOnly()
+                |> Seq.map (
+                    fun event ->
+                        match event.Type with
+                        | Mvccpb.Event.Types.EventType.Put ->
+                            let putAction = if event.Kv.CreateRevision < event.Kv.ModRevision then "CREATED" else "UPDATED"
+                            let manifest = event.Kv.Value.ToByteArray() |> System.Text.Encoding.UTF8.GetString |> JsonSerializer.Deserialize<Manifest>
+                            let versionedManifest = {manifest with metadata.revision = Some (event.Kv.ModRevision.ToString())}
+                            {eventType = putAction; object = versionedManifest}
+                        | Mvccpb.Event.Types.EventType.Delete ->
+                            let manifest = event.PrevKv.Value.ToByteArray() |> System.Text.Encoding.UTF8.GetString |> JsonSerializer.Deserialize<Manifest>
+                            let versionedManifest = {manifest with metadata.revision = Some (event.Kv.ModRevision.ToString())}
+                            {eventType = "DELETED"; object = versionedManifest}
+                        | _ -> failwith "Unknown event type"
+                )
+            let filteredEvents =
+                match ctx.GetQueryStringValue "filter" with
+                | Error msg -> apiEvents
+                | Ok q ->
+                    let conditions = stringToConditions q
+                    apiEvents |> Seq.filter (fun e -> matchConditions conditions (e.object.metadata.labels |> Option.defaultValue Map.empty)) 
+            
+            for event in filteredEvents do
+                let serializedJson = (sprintf "%s%s" (JsonSerializer.Serialize event) Environment.NewLine)
+                ctx.Response.WriteAsync(serializedJson, ctx.RequestAborted) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
     
     let ManifestWatchHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
-
-            let handle (resp: Etcdserverpb.WatchResponse) = 
-                if resp.Created = true then
-                    ctx.Response.StatusCode <- 200
-                    ctx.SetContentType "text/event-stream"
-                    ctx.Response.StartAsync() |> Async.AwaitTask |> Async.RunSynchronously |> ignore
-                    ctx.Response.Body.FlushAsync() |> Async.AwaitTask |> Async.RunSynchronously |> ignore
-                else
-                    let apiEvents =  
-                        resp.Events.AsReadOnly()
-                        |> Seq.map (
-                            fun event ->
-                                match event.Type with
-                                | Mvccpb.Event.Types.EventType.Put ->
-                                    let putAction = if event.Kv.CreateRevision < event.Kv.ModRevision then "CREATED" else "UPDATED"
-                                    let manifest = event.Kv.Value.ToByteArray() |> System.Text.Encoding.UTF8.GetString |> JsonSerializer.Deserialize<Manifest>
-                                    let versionedManifest = {manifest with metadata.revision = Some (event.Kv.ModRevision.ToString())}
-                                    {eventType = putAction; object = versionedManifest}
-                                | Mvccpb.Event.Types.EventType.Delete ->
-                                    let manifest = event.PrevKv.Value.ToByteArray() |> System.Text.Encoding.UTF8.GetString |> JsonSerializer.Deserialize<Manifest>
-                                    let versionedManifest = {manifest with metadata.revision = Some (event.Kv.ModRevision.ToString())}
-                                    {eventType = "DELETED"; object = versionedManifest}
-                                | _ -> failwith "Unknown event type"
-                        )
-                    let filteredEvents =
-                        match ctx.GetQueryStringValue "filter" with
-                        | Error msg -> apiEvents
-                        | Ok q ->
-                            let conditions = stringToConditions q
-                            apiEvents |> Seq.filter (fun e -> matchConditions conditions (e.object.metadata.labels |> Option.defaultValue Map.empty)) 
-                    
-                    for event in filteredEvents do
-                        let serializedJson = (sprintf "%s%s" (JsonSerializer.Serialize event) Environment.NewLine)
-                        ctx.Response.WriteAsync(serializedJson, ctx.RequestAborted) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
+            
+            let createReq = new WatchCreateRequest()
+            createReq.Key <- EtcdClient.GetStringByteForRangeRequests(keyspace)
+            createReq.RangeEnd <- ByteString.CopyFromUtf8(EtcdClient.GetRangeEnd(keyspace))
+            createReq.StartRevision <- 
+                match ctx.GetQueryStringValue "revision" with
+                | Ok q -> Int64.Parse q 
+                | _ -> 0
+            
+            let req = new WatchRequest()
+            req.CreateRequest <- createReq
 
             try
-                client.WatchRangeAsync([|keyspace|], handle, cancellationToken = ctx.RequestAborted)
+                client.WatchAsync(req, (watchReponseHandler ctx), cancellationToken = ctx.RequestAborted)
                     |> Async.AwaitTask |> Async.RunSynchronously |> ignore
                 ("" |> text) next ctx
             with

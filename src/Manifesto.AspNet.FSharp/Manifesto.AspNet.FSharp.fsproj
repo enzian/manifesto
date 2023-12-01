@@ -2,15 +2,29 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Manifesto.AspNet</PackageId>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="ApiV1Models.fs" />
     <Compile Include="ApiV1Controllers.fs" />
     <Compile Include="Hosting.fs" />
   </ItemGroup>
+  
   <ItemGroup>
     <PackageReference Include="dotnet-etcd" Version="6.0.1" />
     <PackageReference Include="Giraffe" Version="6.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.App" Version="2.2.8" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\"/>
+    <None Include="../../LICENSE" Pack="true" PackagePath=""/>
   </ItemGroup>
 </Project>
