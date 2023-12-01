@@ -35,7 +35,7 @@ type Event<'T when 'T :> Manifest> =
     | Delete of 'T
 
 type WireEvent<'T> =
-    { ``type``: string
+    { eventType: string
       object: 'T }
 
 
@@ -73,7 +73,6 @@ let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uin
 
         let rec readEvent (observer: IObserver<_>) (streamReadr: StreamReader) (cts: CancellationToken) =
             async {
-                    
                 try 
                     while not cts.IsCancellationRequested do
                         let! line = streamReadr.ReadLineAsync(cts).AsTask() |> Async.AwaitTask
@@ -92,9 +91,9 @@ let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uin
             lineReaderObservable
             |> Observable.map (fun line -> JsonSerializer.Deserialize<WireEvent<'T>>(line, jsonOptions))
             |> Observable.map (fun wireEvent ->
-                match wireEvent.``type`` with
-                | "MODIFIED" -> Update wireEvent.object
-                | "ADDED" -> Create wireEvent.object
+                match wireEvent.eventType with
+                | "UPDATED" -> Update wireEvent.object
+                | "CREATED" -> Create wireEvent.object
                 | "DELETED" -> Delete wireEvent.object
                 | _ -> Update wireEvent.object)
     }

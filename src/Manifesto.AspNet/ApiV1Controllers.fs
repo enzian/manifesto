@@ -109,6 +109,7 @@ module controllers =
                 match ctx.GetQueryStringValue "revision" with
                 | Ok q -> Int64.Parse q 
                 | _ -> 0
+            createReq.PrevKv <- true
             
             let req = new WatchRequest()
             req.CreateRequest <- createReq
