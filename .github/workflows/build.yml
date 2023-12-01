@@ -27,3 +27,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget
       - run: dotnet build --configuration Release
+        name: Build
+      - run: dotnet test --configuration Release
+        name: Test
