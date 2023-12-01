@@ -21,7 +21,7 @@ let createLocationsForPhantomStock
 
                 let phantomStocks =
                     stocks.Values
-                    |> Seq.filter (fun x -> locationIds |> Seq.contains x.spec.Location |> not)
+                    |> Seq.filter (fun x -> locationIds |> Seq.contains x.spec.location |> not)
 
                 printfn "Phantom Stocks: %A" (phantomStocks |> Seq.map (fun x -> x.metadata.name))
 
@@ -47,7 +47,7 @@ let createLocationsForPhantomStock
                     res
 
                 for phantomStock in phantomStocks do
-                    createLocation phantomStock.spec.Location |> ignore
+                    createLocation phantomStock.spec.location |> ignore
                 )
         )
 
@@ -97,7 +97,7 @@ let createTransportsForProduction
                     spec = { 
                         material = bomline.material
                         quantity = bomline.quantity 
-                        source = stocks |> Seq.tryFind (fun x -> x.spec.Material = bomline.material) |> Option.map (fun x -> x.spec.Location)
+                        source = stocks |> Seq.tryFind (fun x -> x.spec.material = bomline.material) |> Option.map (fun x -> x.spec.location)
                         target = Some bomline.full_order.spec.from
                     }
                         

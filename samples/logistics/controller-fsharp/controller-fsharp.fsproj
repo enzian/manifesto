@@ -5,6 +5,7 @@
     <RootNamespace>controller_fsharp</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Measurements.fs" />
     <Compile Include="ObservableUtilities.cs.fs" />
     <Compile Include="Transport.fs" />
     <Compile Include="ProductionOrder.fs" />
