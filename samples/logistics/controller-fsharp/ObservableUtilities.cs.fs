@@ -4,6 +4,7 @@ open api
 open System.Threading
 open FSharp.Control.Reactive
 open utilities
+open FSharp.Control.Reactive.Observable
 
 let appendToDict<'T when 'T :> Manifest> (d: Map<string, 'T>) (e: Event<'T>) =
     match e with
@@ -17,9 +18,14 @@ let watchResourceOfType<'T when 'T :> Manifest> (api: ManifestApi<'T>) (token: C
     let initialResourcesObs =
         Subject.behavior (initialResources |> Seq.map (fun x -> (x.metadata.name, x)) |> Map.ofSeq)
     
-    let watchObs = api.WatchFromRevision startRevision token |> Async.RunSynchronously
+    let watchObs = api.WatchFromRevision startRevision token |> Async.RunSynchronously |> publish
     
-    Observable.merge
-        (watchObs
-         |> Observable.scanInit (initialResources |> Seq.map (fun x -> (x.metadata.name, x)) |> Map.ofSeq) mapEventToDict)
-        initialResourcesObs
+    let aggregate = 
+        Observable.merge
+            (watchObs
+             |> Observable.scanInit (initialResources |> Seq.map (fun x -> (x.metadata.name, x)) |> Map.ofSeq) mapEventToDict)
+            initialResourcesObs
+    watchObs |> connect |> ignore
+
+    (aggregate, watchObs)
+

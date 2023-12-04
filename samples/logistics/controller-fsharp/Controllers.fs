@@ -5,8 +5,10 @@ open System
 open locations
 open stock
 open api
+open filter
 open logistics
 open production
+open FSharp.Control.Reactive.Observable
 
 let createLocationsForPhantomStock
     (stockApi: api.ManifestApi<StockSpecManifest>)
@@ -51,63 +53,106 @@ let createLocationsForPhantomStock
                 )
         )
 
-let createTransportsForProduction
+let CancelTransportsForDeleteProductionOrders 
     (transportsApi: api.ManifestApi<TransportSpecManifest>)
-    (allProductionOrders: IObservable<Map<string, ProductionOrderSpecManifest>>)
-    (allTransports: IObservable<Map<string, TransportSpecManifest>>)
-    (allStocks: IObservable<Map<string, StockSpecManifest>>) = 
-    allProductionOrders 
-    |> Observable.combineLatest allTransports
-    |> Observable.combineLatest allStocks
-    |> Observable.subscribe (fun (stocksMap,(transportsMap,productionsMap)) ->
-        let transports = transportsMap.Values
-        let stocks = stocksMap.Values |> Seq.map _.spec |> Seq.map fromApiStock
-        let productions = productionsMap.Values
+    (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>) = 
 
-        let prodOrdersWithMissingTransports =
-            productions
-            |> Seq.map (fun p -> p.spec.bom |> Seq.map (fun bomLine -> {|order = p.metadata.name; full_order = p; material = Material bomLine.material; quantity = (bomLine.quantity |> toAmount)|}))
-            |> Seq.concat
-            |> Seq.filter (fun bomLine ->  not (transports |> Seq.exists (
-                    fun transport ->
-                        Material transport.spec.material = bomLine.material
-                        && (transport.spec.quantity |> toAmount) = bomLine.quantity
-                        && transport.metadata.labels 
-                            |> Option.exists (fun labels -> labels.["transports.stockr.io/production_order"] = bomLine.order))))
-        printfn "Prod Orders with missing transports: %A" (prodOrdersWithMissingTransports |> Seq.map _.order |> Seq.distinct)
-
-        let nextTransport = prodOrdersWithMissingTransports |> Seq.tryHead
-        match nextTransport with
-        | None -> printfn "No more transports to create"
-        | Some bomline -> 
-            let prospectiveSrcStocks = 
-                stocks 
-                    |> Seq.filter (fun x -> x.material = bomline.material && x.amount >= (bomline.quantity))
-            let res = 
-                let transportId = sprintf "%s-%s-%s" bomline.order (bomline.material |> MaterialToString) (bomline.quantity |> AmountToString) 
-                transportsApi.Put {
-                    metadata = {
-                        name = transportId
-                        ``namespace``= None
-                        labels = Some ( [
-                            ("transports.stockr.io/autocreated","true")
-                            ("transports.stockr.io/production_order", bomline.order)
-                            ] |> Map.ofSeq )
-                        annotations = [
-                            ("transports.stockr.io/createdAt", DateTimeOffset.UtcNow.ToString("o"))
-                        ] |> Map.ofSeq |> Some
-                        revision = None
-                    }
-                    spec = { 
-                        material = bomline.material |> MaterialToString
-                        quantity = bomline.quantity |> AmountToString
-                        source = prospectiveSrcStocks |> Seq.tryHead |> Option.map _.location
-                        target = Some bomline.full_order.spec.from
-                    }
-                }
-
-            match res with 
-            | Ok () -> printfn "created transport %A" bomline
-            | Error e -> printfn "failed to create transport %A" e
+    productionEvents
+    |> filter (fun x -> match x with | Delete _ -> true | _ -> false)
+    |> switchMap (fun (Delete manifest) -> 
+        let transports = transportsApi.FilterByLabel [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
+        Subject.behavior transports
     )
-    |> ignore
+    |> subscribe (fun transports ->
+        for transport in transports do
+            let res = transportsApi.Delete transport.metadata.name
+            match res with 
+            | Ok () -> printfn "deleted transport %A" transport
+            | Error e -> printfn "failed to delete transport %A" e
+    )
+
+let UpdateProductionOrderTransports 
+    (transportsApi: api.ManifestApi<TransportSpecManifest>)
+    (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>) = 
+    
+    productionEvents
+    |> filter (fun x -> 
+        match x with | Update _ -> true | _ -> false)
+    |> switchMap (fun (Update manifest) -> 
+        let transports = transportsApi.FilterByLabel [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
+        Subject.behavior (manifest, transports)
+    )
+    |> subscribe (fun (productionOrder, transports) -> 
+        for line in productionOrder.spec.bom do
+            let existingTransport = 
+                transports |> Seq.filter (fun x -> x.spec.material = line.material) |> Seq.tryHead
+            if existingTransport |> Option.isSome then
+                let existingTransport = existingTransport |> Option.get
+                if existingTransport.spec.quantity <> line.quantity then
+                    printfn "Transport %s has wrong quantity. Expected %s, got %s" 
+                        existingTransport.metadata.name 
+                        (line.quantity |> toAmount |> AmountToString)
+                        (existingTransport.spec.quantity |> toAmount |> AmountToString)
+                else 
+                    printfn "Transport %s is correct" existingTransport.metadata.name
+            else
+                printfn "Transport for %s is missing" line.material
+    )
+    
+let CreateTransportsForNewProductionOrders
+    (transportsApi: api.ManifestApi<TransportSpecManifest>)
+    (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>)
+    (allStocks: IObservable<Map<string, StockSpecManifest>>) = 
+
+    productionEvents
+    |> filter (fun x -> match x with | Create _ -> true | _ -> false)
+    |> switchMap (fun (Create manifest) -> 
+        (Subject.behavior manifest) |> combineLatest (allStocks |> take 1))
+    |> subscribe (fun (stocksMap, productionOrder) ->
+        let bomLines = 
+            productionOrder.spec.bom 
+            |> Seq.mapi (fun i bomLine -> 
+                {|index = i; material = Material bomLine.material; quantity = (bomLine.quantity |> toAmount)|})
+        let stocks = stocksMap.Values
+        let transports = bomLines |> Seq.map (fun bomLine -> {|
+            material = bomLine.material;
+            quantity = bomLine.quantity;
+            source = stocks |> Seq.tryFind (fun x -> (Material x.spec.material) = bomLine.material && (x.spec.quantity |> toAmount) >= (bomLine.quantity)) |> Option.map _.spec.location;
+            target = Some productionOrder.spec.from|})
+        let validTransports = transports |> Seq.filter (fun x -> x.source |> Option.isSome)
+        let invalidTransports = transports |> Seq.filter (fun x -> x.source |> Option.isNone)
+        if not (invalidTransports |> Seq.isEmpty) then
+            printfn 
+                "Cannot create a transport for po %s because of missing stock: %A"
+                productionOrder.metadata.name
+                (invalidTransports |> Seq.map (fun x -> {|material = x.material; quantity = x.quantity|}))
+        else 
+            for transport in validTransports do
+                let res = 
+                    let transportId = sprintf "%s-%s-%s" productionOrder.metadata.name (transport.material |> MaterialToString) (transport.quantity |> AmountToString) 
+                    transportsApi.Put {
+                        metadata = {
+                            name = transportId
+                            ``namespace``= None
+                            labels = [
+                                ("transports.stockr.io/autocreated","true")
+                                ("transports.stockr.io/production_order", productionOrder.metadata.name)
+                            ] |> Map.ofSeq |> Some 
+                            annotations = [
+                                ("transports.stockr.io/createdAt", DateTimeOffset.UtcNow.ToString("o"))
+                            ] |> Map.ofSeq |> Some
+                            revision = None
+                        }
+                        spec = { 
+                            material = transport.material |> MaterialToString
+                            quantity = transport.quantity |> AmountToString
+                            source = transport.source
+                            target = transport.target
+                        }
+                    }
+
+                match res with 
+                | Ok () -> printfn "created transport %A" transport
+                | Error e -> printfn "failed to create transport %A" e 
+
+    )

@@ -27,20 +27,18 @@ let cts = new CancellationTokenSource()
 let sem = new SemaphoreSlim(0)
 
 // initiate watches to always have an up-to-date view of the resources
-let allStocks  = watchResourceOfType stockApi cts.Token |> publish
-let allLocations = watchResourceOfType locationsApi cts.Token |> publish
-let allTransports = watchResourceOfType transportsApi cts.Token |> publish
-let allProductionOrders = watchResourceOfType productionOrdersApi cts.Token |> publish
+let (aggregatedStocks, stockChanges)  = watchResourceOfType stockApi cts.Token
+let (aggregatedLocations, locationChanges) = watchResourceOfType locationsApi cts.Token
+let (aggreatedTransports, transportChanges) = watchResourceOfType transportsApi cts.Token
+let (aggregatedProductionOrders, productionOrderChanges) = watchResourceOfType productionOrdersApi cts.Token
 
 // compare the stocks and locations to find all stocks without a proper location.
-controllers.createLocationsForPhantomStock stockApi locationsApi allLocations allStocks |> ignore
+controllers.createLocationsForPhantomStock stockApi locationsApi aggregatedLocations aggregatedStocks |> ignore
 
-controllers.createTransportsForProduction transportsApi allProductionOrders allTransports allStocks |> ignore
-
-allLocations |> connect |> ignore
-allStocks |> connect |> ignore
-allTransports |> connect |> ignore
-allProductionOrders |> connect |> ignore
+// controllers.createTransportsForProduction transportsApi aggregatedProductionOrders aggreatedTransports aggregatedStocks |> ignore
+controllers.CreateTransportsForNewProductionOrders transportsApi productionOrderChanges aggregatedStocks |> ignore
+controllers.CancelTransportsForDeleteProductionOrders transportsApi productionOrderChanges |> ignore
+controllers.UpdateProductionOrderTransports transportsApi productionOrderChanges |> ignore
 
 Console.CancelKeyPress.Add(fun _ ->
     printfn "Canceling watch"
