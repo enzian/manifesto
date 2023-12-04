@@ -61,17 +61,17 @@ let createTransportsForProduction
     |> Observable.combineLatest allStocks
     |> Observable.subscribe (fun (stocksMap,(transportsMap,productionsMap)) ->
         let transports = transportsMap.Values
-        let stocks = stocksMap.Values
+        let stocks = stocksMap.Values |> Seq.map _.spec |> Seq.map fromApiStock
         let productions = productionsMap.Values
 
         let prodOrdersWithMissingTransports =
             productions
-            |> Seq.map (fun p -> p.spec.bom |> Seq.map (fun bomLine -> {|order = p.metadata.name; full_order = p; material = bomLine.material; quantity = bomLine.quantity|}))
+            |> Seq.map (fun p -> p.spec.bom |> Seq.map (fun bomLine -> {|order = p.metadata.name; full_order = p; material = Material bomLine.material; quantity = (bomLine.quantity |> toAmount)|}))
             |> Seq.concat
             |> Seq.filter (fun bomLine ->  not (transports |> Seq.exists (
                     fun transport ->
-                        transport.spec.material = bomLine.material
-                        && transport.spec.quantity = bomLine.quantity
+                        Material transport.spec.material = bomLine.material
+                        && (transport.spec.quantity |> toAmount) = bomLine.quantity
                         && transport.metadata.labels 
                             |> Option.exists (fun labels -> labels.["transports.stockr.io/production_order"] = bomLine.order))))
         printfn "Prod Orders with missing transports: %A" (prodOrdersWithMissingTransports |> Seq.map _.order |> Seq.distinct)
@@ -80,27 +80,30 @@ let createTransportsForProduction
         match nextTransport with
         | None -> printfn "No more transports to create"
         | Some bomline -> 
+            let prospectiveSrcStocks = 
+                stocks 
+                    |> Seq.filter (fun x -> x.material = bomline.material && x.amount >= (bomline.quantity))
             let res = 
-                let transportId = sprintf "%s-%s-%s" bomline.order bomline.material bomline.quantity
+                let transportId = sprintf "%s-%s-%s" bomline.order (bomline.material |> MaterialToString) (bomline.quantity |> AmountToString) 
                 transportsApi.Put {
                     metadata = {
                         name = transportId
                         ``namespace``= None
                         labels = Some ( [
                             ("transports.stockr.io/autocreated","true")
-                            ("transports.stockr.io/createdAt", DateTimeOffset.UtcNow.ToString("o"))
                             ("transports.stockr.io/production_order", bomline.order)
                             ] |> Map.ofSeq )
-                        annotations = None
+                        annotations = [
+                            ("transports.stockr.io/createdAt", DateTimeOffset.UtcNow.ToString("o"))
+                        ] |> Map.ofSeq |> Some
                         revision = None
                     }
                     spec = { 
-                        material = bomline.material
-                        quantity = bomline.quantity 
-                        source = stocks |> Seq.tryFind (fun x -> x.spec.material = bomline.material) |> Option.map (fun x -> x.spec.location)
+                        material = bomline.material |> MaterialToString
+                        quantity = bomline.quantity |> AmountToString
+                        source = prospectiveSrcStocks |> Seq.tryHead |> Option.map _.location
                         target = Some bomline.full_order.spec.from
                     }
-                        
                 }
 
             match res with 
