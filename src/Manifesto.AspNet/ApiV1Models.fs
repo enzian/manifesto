@@ -32,7 +32,7 @@ module models =
         | In of string * string seq
         | NotIn of string * string seq
     
-    type Event = {
+    type ManifestChangeEvent = {
         eventType: string
         object: Manifest
     }
