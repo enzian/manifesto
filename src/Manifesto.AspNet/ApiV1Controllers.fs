@@ -108,7 +108,7 @@ module controllers =
                     fun event ->
                         match event.Type with
                         | Mvccpb.Event.Types.EventType.Put ->
-                            let putAction = if event.Kv.CreateRevision < event.Kv.ModRevision then "CREATED" else "UPDATED"
+                            let putAction = if event.Kv.CreateRevision < event.Kv.ModRevision then "UPDATED" else "CREATED"
                             let manifest = event.Kv.Value.ToByteArray() |> System.Text.Encoding.UTF8.GetString |> JsonSerializer.Deserialize<Manifest>
                             let versionedManifest = {manifest with metadata.revision = Some (event.Kv.ModRevision.ToString())}
                             {eventType = putAction; object = versionedManifest}
