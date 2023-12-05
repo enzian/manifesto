@@ -34,7 +34,7 @@ jobs:
           draft: false
           prerelease: false
       - name: Upload Release Asset
-        id: upload-release-asset-1 
+        id: upload-release-asset-1
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,5 +42,15 @@ jobs:
           upload_url: ${{ steps.create_release.outputs.upload_url }} 
           asset_path: src/Manifesto.AspNet/bin/Release/Manifesto.AspNet.${{github.ref_name}}.nupkg
           asset_name: Manifesto.AspNet.${{ github.ref_name }}.nupkg
+          asset_content_type: application/octet-stream
+      - name: Upload Release Asset
+        id: upload-release-asset-2
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          asset_path: src/Manifesto.Client.Fsharp/bin/Release/Manifesto.AspNet.Client.${{github.ref_name}}.nupkg
+          asset_name: Manifesto.Client.Fsharp.${{ github.ref_name }}.nupkg
           asset_content_type: application/octet-stream
       
