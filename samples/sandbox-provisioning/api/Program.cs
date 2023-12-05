@@ -13,6 +13,7 @@ var keyspaces = (string kind, string version, string group) =>
         ("sandboxes", "infra.developer.io", "v1alpha1") => $"/registry/sandboxes",
         _ => string.Empty
     };
-app.UseManifestoV1(keyspaces);
+var ttl = (string kind, string version, string group) => (long?)null;
+app.UseManifestoV1(keyspaces, ttl);
 
 await app.RunAsync();

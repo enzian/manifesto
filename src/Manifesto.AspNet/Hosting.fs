@@ -9,6 +9,7 @@ open System.Runtime.CompilerServices
 
 open Manifesto.AspNet.api.v1.controllers
 open api.v1.controllers
+open System
 
 module hosting =
 
@@ -30,6 +31,9 @@ type HostingExtensions =
         x.Services |> hosting.configureServices |> ignore
 
     [<Extension>]
-    static member UseManifestoV1 (x:IApplicationBuilder, keyspaceFactory:System.Func<string, string , string, string>) =
+    static member UseManifestoV1 (x:IApplicationBuilder, keyspaceFactory:System.Func<string, string , string, string>, ttl: System.Func<string, string, string, Nullable<int64>>) =
         let ksp group version typ = keyspaceFactory.Invoke(group, version, typ)
-        x |> hosting.configureApp ( endpoints ksp) |> ignore
+        let ttl group version typ = 
+            let v = ttl.Invoke(group, version, typ)
+            if v.HasValue then Some v.Value else None
+        x |> hosting.configureApp ( endpoints ksp ttl) |> ignore

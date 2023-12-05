@@ -23,8 +23,16 @@ var keyspaces = (string group, string version, string kind) => {
         };
     };
 
+var ttl = (string group, string version, string kind) => {
+        return  (kind, group, version) switch {
+            ("event", "events.stockr.io", "v1") => (long?)120,
+            ("events", "events.stockr.io", "v1") => (long?)120,
+            _ => null
+        };
+    };
+
 var app = builder.Build();
 
-app.UseManifestoV1(keyspaces);
+app.UseManifestoV1(keyspaces, ttl);
 
 await app.RunAsync();

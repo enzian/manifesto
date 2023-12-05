@@ -19,6 +19,8 @@ module controllers =
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
             let results = client.GetRange(keyspace)
+
+            let lease = client.LeaseGrant (new LeaseGrantRequest(TTL = 60))
             
             let manifests = 
                 results.Kvs
@@ -40,17 +42,29 @@ module controllers =
 
             (filteredManifests |> json) next ctx
 
-    let ManifestCreationHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
+    let ManifestCreationHandler keyspaceFactory ttl ((group: string), (version: string), (typ: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let manifest = JsonSerializer.Deserialize<Manifest>(ctx.Request.BodyReader.AsStream())
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
+            let ttl = ttl group version typ
             let key = sprintf "%s/%s" keyspace manifest.metadata.name
             let value = JsonSerializer.Serialize manifest
-            let putResult = client.Put(key, value)
-            let revisionedManifest = {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
 
-            (revisionedManifest |> json) next ctx
+            match ttl with 
+            | Some (ttl) ->
+                let lease = client.LeaseGrant (new LeaseGrantRequest(TTL = ttl))
+                let putResult = client.Put(
+                    new PutRequest (
+                            Key = ByteString.CopyFromUtf8(key),
+                            Value = ByteString.CopyFromUtf8(value),
+                            Lease = lease.ID))
+                let revisionedManifest = {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
+                (revisionedManifest |> json) next ctx
+            | None ->
+                let putResult = client.Put(key, value)
+                let revisionedManifest = {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
+                (revisionedManifest |> json) next ctx
     
     let ManifestDeleteHandler keyspaceFactory ((group: string), (version: string), (typ: string), (name: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -154,7 +168,7 @@ module controllers =
             | :? OperationCanceledException -> 
                 ("completed" |> text |> Successful.OK) next ctx
     
-    let endpoints keyspaces =
+    let endpoints keyspaces ttl =
         subRoute "/apis"
             (choose [
                 GET >=> 
@@ -162,7 +176,7 @@ module controllers =
                         routef "/%s/%s/%s/" (ManifestListHandler keyspaces)
                         routef "/watch/%s/%s/%s/" (ManifestWatchHandler keyspaces)
                 ]
-                PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaces)
+                PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaces ttl)
                 DELETE >=> 
                     choose [
                         routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaces)
