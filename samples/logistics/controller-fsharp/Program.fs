@@ -6,7 +6,8 @@ open locations
 open utilities
 open logistics
 open production
-open FSharp.Control.Reactive.Observable
+open events
+open api
 
 // http client to access the Manifesto APIs
 let client = new HttpClient()
@@ -22,6 +23,36 @@ let transportsApi =
     api.ManifestsFor<TransportSpecManifest> client "logistics.stockr.io/v1alpha1/transports/"
 let productionOrdersApi =
     api.ManifestsFor<ProductionOrderSpecManifest> client "logistics.stockr.io/v1alpha1/production-orders/"
+let eventsApi =
+    api.ManifestsFor<EventManifest> client "events.stockr.io/v1/events/"
+
+let sendEvent instance controller ``type`` action reason note = 
+    eventsApi.Put {
+        metadata = {
+            name = Guid.NewGuid().ToString()
+            labels = [] |> Map.ofList |> Some
+            annotations = None
+            revision = None
+            ``namespace`` = None
+        }
+        eventTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        action = action
+        note = note
+        reason = reason
+        reportingController = controller
+        reportingInstance = instance
+        ``type`` = ``type``
+    } |> ignore
+
+let machineName = Environment.MachineName
+let productionOrderControllerLog = sendEvent machineName "production-order-transports" "NORMAL"
+let productionOrderControllerWarn = sendEvent machineName "production-order-transports" "WARNING"
+
+let transportCtlLogger = {
+    new IEventLogger with 
+        member _.Log = sendEvent machineName "production-order-transports" "NORMAL"
+        member _.Warn = sendEvent machineName "production-order-transports" "NORMAL"
+}
 
 let cts = new CancellationTokenSource()
 let sem = new SemaphoreSlim(0)
@@ -36,9 +67,9 @@ let (aggregatedProductionOrders, productionOrderChanges) = watchResourceOfType p
 controllers.createLocationsForPhantomStock stockApi locationsApi aggregatedLocations aggregatedStocks |> ignore
 
 // controllers.createTransportsForProduction transportsApi aggregatedProductionOrders aggreatedTransports aggregatedStocks |> ignore
-controllers.CreateTransportsForNewProductionOrders transportsApi productionOrderChanges aggregatedStocks |> ignore
-controllers.CancelTransportsForDeleteProductionOrders transportsApi productionOrderChanges |> ignore
-controllers.UpdateProductionOrderTransports transportsApi productionOrderChanges |> ignore
+controllers.CreateTransportsForNewProductionOrders transportsApi productionOrderChanges aggregatedStocks transportCtlLogger |> ignore
+controllers.CancelTransportsForDeleteProductionOrders transportsApi productionOrderChanges transportCtlLogger |> ignore
+controllers.UpdateProductionOrderTransports transportsApi productionOrderChanges transportCtlLogger |> ignore
 
 Console.CancelKeyPress.Add(fun _ ->
     printfn "Canceling watch"

@@ -8,6 +8,7 @@ open api
 open filter
 open logistics
 open production
+open events
 open FSharp.Control.Reactive.Observable
 
 let createLocationsForPhantomStock
@@ -55,7 +56,8 @@ let createLocationsForPhantomStock
 
 let CancelTransportsForDeleteProductionOrders 
     (transportsApi: api.ManifestApi<TransportSpecManifest>)
-    (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>) = 
+    (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>)
+    (logger: IEventLogger) = 
 
     productionEvents
     |> filter (fun x -> match x with | Delete _ -> true | _ -> false)
@@ -67,13 +69,14 @@ let CancelTransportsForDeleteProductionOrders
         for transport in transports do
             let res = transportsApi.Delete transport.metadata.name
             match res with 
-            | Ok () -> printfn "deleted transport %A" transport
-            | Error e -> printfn "failed to delete transport %A" e
+            | Ok () -> logger.Log "REMOVE" "TransportSuccessfullyRemoved" (sprintf "successfully delete transport %s" transport.metadata.name)
+            | Error e -> logger.Log "REMOVE" "TransportRemovalFailed" (sprintf "failed to delete transport %A" e)
     )
 
 let UpdateProductionOrderTransports 
     (transportsApi: api.ManifestApi<TransportSpecManifest>)
-    (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>) = 
+    (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>)
+    (logger: IEventLogger) = 
     
     productionEvents
     |> filter (fun x -> 
@@ -89,20 +92,24 @@ let UpdateProductionOrderTransports
             if existingTransport |> Option.isSome then
                 let existingTransport = existingTransport |> Option.get
                 if existingTransport.spec.quantity <> line.quantity then
-                    printfn "Transport %s has wrong quantity. Expected %s, got %s" 
+                    (sprintf "Transport %s has wrong quantity. Expected %s, got %s" 
                         existingTransport.metadata.name 
                         (line.quantity |> toAmount |> AmountToString)
-                        (existingTransport.spec.quantity |> toAmount |> AmountToString)
+                        (existingTransport.spec.quantity |> toAmount |> AmountToString))
+                    |> logger.Warn "UPDATE" "ChangeQuantityOfTransport"
                 else 
-                    printfn "Transport %s is correct" existingTransport.metadata.name
+                    (sprintf "Transport %s is correct" existingTransport.metadata.name)
+                        |> logger.Log "NONE" "TransportQuantitySufficient"
             else
-                printfn "Transport for %s is missing" line.material
+                (sprintf "Transport for %s is missing" line.material)
+                    |> logger.Log "CREATE" "CreateTransportForMissingQuantity"
     )
     
 let CreateTransportsForNewProductionOrders
     (transportsApi: api.ManifestApi<TransportSpecManifest>)
     (productionEvents: IObservable<Event<ProductionOrderSpecManifest>>)
-    (allStocks: IObservable<Map<string, StockSpecManifest>>) = 
+    (allStocks: IObservable<Map<string, StockSpecManifest>>)
+    (logger: IEventLogger) = 
 
     productionEvents
     |> filter (fun x -> match x with | Create _ -> true | _ -> false)
@@ -122,10 +129,11 @@ let CreateTransportsForNewProductionOrders
         let validTransports = transports |> Seq.filter (fun x -> x.source |> Option.isSome)
         let invalidTransports = transports |> Seq.filter (fun x -> x.source |> Option.isNone)
         if not (invalidTransports |> Seq.isEmpty) then
-            printfn 
+            (sprintf 
                 "Cannot create a transport for po %s because of missing stock: %A"
                 productionOrder.metadata.name
-                (invalidTransports |> Seq.map (fun x -> {|material = x.material; quantity = x.quantity|}))
+                (invalidTransports |> Seq.map (fun x -> {|material = x.material; quantity = x.quantity|})))
+                |> logger.Warn "CREATE" "TransportOrderNotCreated"
         else 
             for transport in validTransports do
                 let res = 
@@ -152,7 +160,7 @@ let CreateTransportsForNewProductionOrders
                     }
 
                 match res with 
-                | Ok () -> printfn "created transport %A" transport
-                | Error e -> printfn "failed to create transport %A" e 
+                | Ok () -> (sprintf "created transport %A" transport ) |> logger.Warn "CREATE" "TransportOrderCreated"
+                | Error e -> sprintf "failed to create transport %A" e |> logger.Warn "CREATE" "TransportOrderCreationFailed"
 
     )

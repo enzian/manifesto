@@ -17,6 +17,8 @@ var keyspaces = (string group, string version, string kind) => {
             ("transports", "logistics.stockr.io", "v1alpha1") => $"/registry/transports",
             ("production-order", "logistics.stockr.io", "v1alpha1") => $"/registry/production-orders",
             ("production-orders", "logistics.stockr.io", "v1alpha1") => $"/registry/production-orders",
+            ("event", "events.stockr.io", "v1") => $"/registry/events",
+            ("events", "events.stockr.io", "v1") => $"/registry/events",
             _ => string.Empty
         };
     };
