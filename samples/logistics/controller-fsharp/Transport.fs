@@ -1,4 +1,4 @@
-module logistics
+module transports
 open api
 
 type Transport = {

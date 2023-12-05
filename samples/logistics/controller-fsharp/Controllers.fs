@@ -6,10 +6,11 @@ open locations
 open stock
 open api
 open filter
-open logistics
+open transports
 open production
 open events
 open FSharp.Control.Reactive.Observable
+open measurements
 
 let createLocationsForPhantomStock
     (stockApi: api.ManifestApi<StockSpecManifest>)

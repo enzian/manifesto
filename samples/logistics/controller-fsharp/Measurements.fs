@@ -1,4 +1,5 @@
 module measurements
+open System.Text.RegularExpressions
 
 
 type Unit = Unit of string
@@ -14,6 +15,16 @@ type Amount =
     member this.toString() = 
         match this with
         | Amount (Quantity (q), Unit (u)) -> sprintf "%i%s" q u 
+
+
+let reg = new Regex(@"^([\d\.]+)(\w+)$")
+let toAmount str =
+    let m = reg.Match(str)
+    if m.Success then
+        let [_; digits; unitStr] = m.Groups |> Seq.map (fun x -> x.Value) |> Seq.toList
+        Amount (Quantity (int digits), Unit unitStr)
+    else
+        failwithf "Could not parse amount: %s" str
 
 module units =
     open System

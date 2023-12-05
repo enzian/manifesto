@@ -32,15 +32,6 @@ let toApiStock (model: Stock) : ApiStock =
         quantity = model.amount.toString() 
     }
 
-let reg = new Regex(@"^([\d\.]+)(\w+)$")
-let toAmount str =
-    let m = reg.Match(str)
-    if m.Success then
-        let [_; digits; unitStr] = m.Groups |> Seq.map (fun x -> x.Value) |> Seq.toList
-        Amount (Quantity (int digits), Unit unitStr)
-    else
-        failwithf "Could not parse amount: %s" str
-
 let AmountToString (Amount (Quantity (q), Unit (u))) = sprintf "%i%s" q u
 
 let MaterialToString (Material (mat)) = mat
