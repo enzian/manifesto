@@ -14,6 +14,12 @@ open dotnet_etcd
 
 module controllers =
     open models
+
+    let inline toMap kvps =
+        kvps
+        |> Seq.map (|KeyValue|)
+        |> Map.ofSeq
+
     let ManifestListHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
@@ -42,29 +48,44 @@ module controllers =
 
             (filteredManifests |> json) next ctx
 
-    let ManifestCreationHandler keyspaceFactory ttl ((group: string), (version: string), (typ: string)) : HttpHandler  =
+    let ManifestCreationHandler keyspaceFactory ttl subdocument ((group: string), (version: string), (typ: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let manifest = JsonSerializer.Deserialize<Manifest>(ctx.Request.BodyReader.AsStream())
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
             let ttl = ttl group version typ
             let key = sprintf "%s/%s" keyspace manifest.metadata.name
-            let value = JsonSerializer.Serialize manifest
 
-            match ttl with 
-            | Some (ttl) ->
-                let lease = client.LeaseGrant (new LeaseGrantRequest(TTL = ttl))
-                let putResult = client.Put(
-                    new PutRequest (
-                            Key = ByteString.CopyFromUtf8(key),
-                            Value = ByteString.CopyFromUtf8(value),
-                            Lease = lease.ID))
-                let revisionedManifest = {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
-                (revisionedManifest |> json) next ctx
-            | None ->
-                let putResult = client.Put(key, value)
-                let revisionedManifest = {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
-                (revisionedManifest |> json) next ctx
+            let putManifest manifest = 
+                let value = JsonSerializer.Serialize manifest
+                match ttl with 
+                | Some (ttl) ->
+                    let lease = client.LeaseGrant (new LeaseGrantRequest(TTL = ttl))
+                    let putResult = client.Put(
+                        new PutRequest (
+                                Key = ByteString.CopyFromUtf8(key),
+                                Value = ByteString.CopyFromUtf8(value),
+                                Lease = lease.ID))
+                    {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
+                | None ->
+                    let putResult = client.Put(key, value)
+                    {manifest with metadata.revision = Some (putResult.Header.Revision.ToString())}
+
+            let existingRes = client.Get(key)
+            if existingRes.Count > 0 then
+                let existingManifest = 
+                    existingRes.Kvs
+                    |> Seq.head
+                    |> fun kv -> kv.Value.ToStringUtf8()
+                    |> JsonSerializer.Deserialize<Manifest>
+                let updatedSubdocuments = existingManifest.subdocuments |> toMap |> Map.add subdocument manifest.subdocuments.[subdocument]
+                let updatedManifest = 
+                    {existingManifest with subdocuments = updatedSubdocuments}
+                let updatedManifest = putManifest updatedManifest 
+                (updatedManifest |> json) next ctx
+            else
+                let createdManifest = putManifest manifest
+                (createdManifest |> json) next ctx
     
     let ManifestDeleteHandler keyspaceFactory ((group: string), (version: string), (typ: string), (name: string)) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
@@ -176,7 +197,8 @@ module controllers =
                         routef "/%s/%s/%s/" (ManifestListHandler keyspaces)
                         routef "/watch/%s/%s/%s/" (ManifestWatchHandler keyspaces)
                 ]
-                PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaces ttl)
+                PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaces ttl "spec")
+                PUT >=> routef "/%s/%s/%s/%s" (fun (group, version, kind, subDoc) -> ManifestCreationHandler keyspaces ttl subDoc (group, version, kind))
                 DELETE >=> 
                     choose [
                         routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaces)
