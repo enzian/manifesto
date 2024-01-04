@@ -4,21 +4,30 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
+
   <PropertyGroup>
     <PackageId>Manifesto.AspNet.Client</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
   </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="Filters.fs" />
     <Compile Include="Api.fs" />
     <Compile Include="Events.fs" />
     <Compile Include="Utilities.fs" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="dotnet-etcd" Version="6.0.1" />
     <PackageReference Include="FsHttp" Version="11.0.0" />
   </ItemGroup>
+
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="\" />
     <None Include="../../LICENSE" Pack="true" PackagePath="" />
