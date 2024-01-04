@@ -80,7 +80,7 @@ module controllers =
                     |> JsonSerializer.Deserialize<Manifest>
                 let updatedSubdocuments = existingManifest.subdocuments |> toMap |> Map.add subdocument manifest.subdocuments.[subdocument]
                 let updatedManifest = 
-                    {existingManifest with subdocuments = updatedSubdocuments}
+                    {existingManifest with metadata = manifest.metadata ; subdocuments = updatedSubdocuments}
                 let updatedManifest = putManifest updatedManifest 
                 (updatedManifest |> json) next ctx
             else
