@@ -22,7 +22,7 @@ let cts = new CancellationTokenSource()
 let sem = new SemaphoreSlim(0)
 
 // run the watch command that reads changes from the resource API
-let stocks = sandboxApi.List
+let stocks = sandboxApi.List ()
 let stocksRevision = stocks |> mostRecentRevision
 
 let sandboxWatch =

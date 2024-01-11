@@ -10,6 +10,7 @@ open System.Runtime.CompilerServices
 open Manifesto.AspNet.api.v1.controllers
 open api.v1.controllers
 open System
+open System.Security.Claims
 
 module hosting =
 
@@ -31,9 +32,11 @@ type HostingExtensions =
         x.Services |> hosting.configureServices |> ignore
 
     [<Extension>]
-    static member UseManifestoV1 (x:IApplicationBuilder, keyspaceFactory:System.Func<string, string , string, string>, ttl: System.Func<string, string, string, Nullable<int64>>) =
+    static member UseManifestoV1 (x:IApplicationBuilder, keyspaceFactory:System.Func<string, string , string, string>, ttl: System.Func<string, string, string, Nullable<int64>>, isAuthorized: System.Func<string, string, string, string, ClaimsPrincipal, bool>) =
         let ksp group version typ = keyspaceFactory.Invoke(group, version, typ)
         let ttl group version typ = 
             let v = ttl.Invoke(group, version, typ)
             if v.HasValue then Some v.Value else None
-        x |> hosting.configureApp ( endpoints ksp ttl) |> ignore
+        let isAuthorized group version typ verb identity = 
+            isAuthorized.Invoke(group, version, typ, verb, identity)
+        x |> hosting.configureApp ( endpoints ksp ttl isAuthorized) |> ignore

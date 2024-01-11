@@ -50,12 +50,12 @@ let formatLabelFilter condition =
 
 type ManifestApi<'T when 'T :> Manifest> =
     abstract Get: string -> Option<'T>
-    abstract List: seq<'T>
-    abstract FilterByLabel: (KeyIs seq -> 'T seq)
-    abstract Watch: (CancellationToken -> Async<IObservable<Event<'T>>>)
-    abstract WatchFromRevision: (uint -> CancellationToken -> Async<IObservable<Event<'T>>>)
-    abstract Put: ('T -> Result<unit, exn>)
-    abstract Delete: (string -> Result<unit, exn>)
+    abstract List: unit -> seq<'T>
+    abstract FilterByLabel: KeyIs seq -> 'T seq
+    abstract Watch: CancellationToken -> Async<IObservable<Event<'T>>>
+    abstract WatchFromRevision: uint -> CancellationToken -> Async<IObservable<Event<'T>>>
+    abstract Put: 'T -> Result<unit, exn>
+    abstract Delete: string -> Result<unit, exn>
 
 let jsonOptions = new JsonSerializerOptions()
 jsonOptions.PropertyNameCaseInsensitive <- true
@@ -170,9 +170,9 @@ let dropManifest httpClient path key =
 let ManifestsFor<'T when 'T :> Manifest> (httpClient: HttpClient) (path: string) =
     { new ManifestApi<'T> with
         member _.Get key = fetchWithKey httpClient path key
-        member _.List = listWithKey httpClient path
-        member _.FilterByLabel = listWithFilter httpClient path
-        member _.Watch = watchResource httpClient path None
-        member _.WatchFromRevision = (fun r cts ->  watchResource httpClient path (Some r) cts)
-        member _.Put = putManifest httpClient path
-        member _.Delete = dropManifest httpClient path }
+        member _.List () = listWithKey httpClient path
+        member _.FilterByLabel label = listWithFilter httpClient path label
+        member _.Watch ct = watchResource httpClient path None ct
+        member _.WatchFromRevision r cts  = watchResource httpClient path (Some r) cts
+        member _.Put m = putManifest httpClient path m
+        member _.Delete name = dropManifest httpClient path name}

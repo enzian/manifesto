@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Manifesto.AspNet;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +15,7 @@ var keyspaces = (string kind, string version, string group) =>
         _ => string.Empty
     };
 var ttl = (string kind, string version, string group) => (long?)null;
-app.UseManifestoV1(keyspaces, ttl);
+var isAuthorized = (string kind, string version, string group, string verb, ClaimsPrincipal identity) => true;
+app.UseManifestoV1(keyspaces, ttl, isAuthorized);
 
 await app.RunAsync();

@@ -11,6 +11,13 @@ open Etcdserverpb
 open Google.Protobuf
 open dotnet_etcd
 
+type ResourceType = { group: string;
+                      version: string;
+                      kind: string
+                      plural: string
+                      shorthand: string
+                      namespaced: bool }
+
 
 module controllers =
     open models
@@ -20,7 +27,7 @@ module controllers =
         |> Seq.map (|KeyValue|)
         |> Map.ofSeq
 
-    let ManifestListHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
+    let ManifestListHandler keyspaceFactory (group: string) (version: string) (typ: string) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
@@ -48,7 +55,7 @@ module controllers =
 
             (filteredManifests |> json) next ctx
 
-    let ManifestCreationHandler keyspaceFactory ttl subdocument ((group: string), (version: string), (typ: string)) : HttpHandler  =
+    let ManifestCreationHandler keyspaceFactory ttl subdocument (group: string) (version: string) (typ: string) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let manifest = JsonSerializer.Deserialize<Manifest>(ctx.Request.BodyReader.AsStream())
             let client = ctx.RequestServices.GetService<IEtcdClient>()
@@ -87,7 +94,7 @@ module controllers =
                 let createdManifest = putManifest manifest
                 (createdManifest |> json) next ctx
     
-    let ManifestDeleteHandler keyspaceFactory ((group: string), (version: string), (typ: string), (name: string)) : HttpHandler  =
+    let ManifestDeleteHandler keyspaceFactory (group: string) (version: string) (typ: string) (name: string) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
@@ -99,7 +106,7 @@ module controllers =
             ) next ctx
     
     
-    let ManifestBatchDeleteHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
+    let ManifestBatchDeleteHandler keyspaceFactory (group: string) (version: string) (typ: string) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
@@ -164,7 +171,7 @@ module controllers =
                 let serializedJson = (sprintf "%s%s" (JsonSerializer.Serialize event) Environment.NewLine)
                 ctx.Response.WriteAsync(serializedJson, ctx.RequestAborted) |> Async.AwaitTask |> Async.RunSynchronously |> ignore
     
-    let ManifestWatchHandler keyspaceFactory ((group: string), (version: string), (typ: string)) : HttpHandler  =
+    let ManifestWatchHandler keyspaceFactory (group: string) (version: string) (typ: string) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
@@ -188,20 +195,42 @@ module controllers =
             with
             | :? OperationCanceledException -> 
                 ("completed" |> text |> Successful.OK) next ctx
-    
-    let endpoints keyspaces ttl =
+
+    // let notLoggedIn =
+    //     RequestErrors.UNAUTHORIZED
+    //         "Basic"
+    //         "Some Realm"
+    //         "You must be logged in."
+
+    let endpoints keyspaces ttl isAuthorized =
+        let mustHavePermission group version kind verb : HttpHandler = 
+            fun next (ctx : HttpContext) ->
+                let identity = ctx.User
+                let allowed = isAuthorized group version kind verb identity
+                if allowed then
+                    next ctx
+                else
+                    RequestErrors.FORBIDDEN "Basic" next ctx
+                        
         subRoute "/apis"
             (choose [
                 GET >=> 
                     choose [
-                        routef "/%s/%s/%s/" (ManifestListHandler keyspaces)
-                        routef "/watch/%s/%s/%s/" (ManifestWatchHandler keyspaces)
+                        routef "/%s/%s/%s/" (fun (group, version, kind) -> 
+                            (mustHavePermission group version kind "list") >=> ManifestListHandler keyspaces group version kind)
+                        routef "/watch/%s/%s/%s/" (fun (group, version, kind) -> 
+                            mustHavePermission group version kind "watch" >=> ManifestWatchHandler keyspaces group version kind)
                 ]
-                PUT >=> routef "/%s/%s/%s/" (ManifestCreationHandler keyspaces ttl "spec")
-                PUT >=> routef "/%s/%s/%s/%s" (fun (group, version, kind, subDoc) -> ManifestCreationHandler keyspaces ttl subDoc (group, version, kind))
+                PUT >=> routef "/%s/%s/%s/" (fun (group, version, kind) -> 
+                    mustHavePermission group version kind "write" >=> ManifestCreationHandler keyspaces ttl "spec" group version kind)
+                PUT >=> routef "/%s/%s/%s/%s" (fun (group, version, kind, subDoc) -> 
+                    mustHavePermission group version kind "write" >=> ManifestCreationHandler keyspaces ttl subDoc group version kind)
                 DELETE >=> 
                     choose [
-                        routef "/%s/%s/%s/%s" (ManifestDeleteHandler keyspaces)
-                        routef "/%s/%s/%s/" (ManifestBatchDeleteHandler keyspaces)
+                        routef "/%s/%s/%s/%s" (fun (group, version, kind, name) ->  
+                            mustHavePermission group version kind "delete" >=> ManifestDeleteHandler keyspaces group version kind name)
+                        routef "/%s/%s/%s/" (fun (group, version, kind) ->  
+                            mustHavePermission group version kind "delete" >=> ManifestBatchDeleteHandler keyspaces group version kind)
                     ]
                 ])
+ 

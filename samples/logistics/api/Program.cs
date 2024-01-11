@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using dotnet_etcd;
 using dotnet_etcd.interfaces;
 using Manifesto.AspNet;
@@ -30,9 +31,12 @@ var ttl = (string group, string version, string kind) => {
             _ => null
         };
     };
+var isAuth = (string _, string _, string _, string _, ClaimsPrincipal _) => {
+        return true;
+    };
 
 var app = builder.Build();
 
-app.UseManifestoV1(keyspaces, ttl);
+app.UseManifestoV1(keyspaces, ttl, isAuth);
 
 await app.RunAsync();
