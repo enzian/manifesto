@@ -210,7 +210,7 @@ module controllers =
                 if allowed then
                     next ctx
                 else
-                    RequestErrors.FORBIDDEN "Basic" next ctx
+                    RequestErrors.FORBIDDEN "Forbidden" next ctx
                         
         subRoute "/apis"
             (choose [

@@ -23,18 +23,12 @@ openssl req -new -x509 -key server.key -out server.crt -days 360 -subj "/CN=loca
 openssl pkcs12 -export -inkey server.key -in server.crt -out server.pfx -password pass:
 ```
 
-3. Create the server keypair:
+3. Create the client keypair:
 ```
 openssl ecparam -name prime256v1 -genkey -noout -out client.key
 openssl req -new -nodes -out client.csr -key client.key -subj '/CN=admin /O=system:masters'
 openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out client.crt -days 360 -sha256
 openssl x509 -noout -text -in client.crt
-```
-
-4. Create
-```
-openssl genrsa -out jwt.key 2048
-openssl req -new -x509 -key jwt.key -out jwt.crt -days 360 -subj "/CN=issuer.local"
 ```
 
 ## Running
@@ -58,17 +52,33 @@ $ curl https://localhost:5001/apis/stocks.stockr.io/v1alpha1/stocks/ -k --cert c
 < server: Kestrel
 < content-length: 213
 < 
-[{"metadata":{"name":"10000-1121-10-000-001-headers-10-000-001-headers","labels":{"stocks.stockr.io/material":"Header"},"revision":"1638"},"spec":{"material":"Header","quantity":"4.00pcs","location":"10-001-10"}}]
+[{"metadata":{"name ...  "location":"10-001-10"}}]
 ```
 
 # Testing JWT authentication
 
-The sample also allows for the JWTBearer authentication scheme. For this we must create new correctly signed JWT token whic we then add to the request header:
+The sample also allows for the JWTBearer authentication scheme. A symmetric key is used for simplicity to sign the JWT tokens.
 
 ```
-$ KEYID=$(openssl x509 -in ca.crt -noout -fingerprint | cut -c 18- | tr -d :)
-$ jwt encode --kid $KEYID --secret=@ca.key --exp='+60 sec' '{"hello":"world"}'
+$ KEY=3vod7hstfmvcv3gjnmc4opanoj3re67l3cyk9auoq2sjaqpj
 $ curl https://localhost:5001/apis/stocks.stockr.io/v1alpha1/stocks/ \
-    -H "Authorization: Bearer $(jwt encode --kid $KEYID --secret=@ca.key --exp='+60 sec' '{"hello":"world"}')" \
+    -H "Authorization: Bearer $(jwt encode --secret=$KEY --exp='+60 sec' '{"sub":"admin","groups":["system:masters", "anonymous"]}')" \
     -k -vv
+> GET /apis/stocks.stockr.io/v1alpha1/stocks/ HTTP/2
+> Host: localhost:5001
+> User-Agent: curl/8.1.2
+> Accept: */*
+> 
+< HTTP/2 200 
+< content-type: application/json; charset=utf-8
+< date: Thu, ....
+< server: Kestrel
+< content-length: 213
+< 
+[{"metadata":{"name ...  "location":"10-001-10"}}]
+```
+
+additional tokens with arbitrary lifetimes can be created with the `jwt` tool by adjusting the `--exp` parameter:
+```
+jwt encode --secret=$KEY --exp='+60 sec' '{"sub":"admin","groups":["system:masters"]}'
 ```

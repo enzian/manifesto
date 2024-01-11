@@ -28,6 +28,7 @@ module Program =
     open System.IdentityModel.Tokens.Jwt
     open Microsoft.AspNetCore.Authentication.JwtBearer
     open Microsoft.IdentityModel.Logging
+    open Microsoft.IdentityModel.JsonWebTokens
 
     let exitCode = 0
 
@@ -44,11 +45,7 @@ module Program =
                 "samples/auth/auth-with-mTLS/ca.key"
             )
         
-        let jwtCert =
-            X509Certificate2.CreateFromPemFile(
-                "samples/auth/auth-with-mTLS/jwt.crt",
-                "samples/auth/auth-with-mTLS/jwt.key"
-            )
+        let jwtCert = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes("3vod7hstfmvcv3gjnmc4opanoj3re67l3cyk9auoq2sjaqpj"))
 
         builder.WebHost.ConfigureKestrel(fun (options: KestrelServerOptions) ->
             options.ConfigureHttpsDefaults(fun options ->
@@ -70,61 +67,62 @@ module Program =
 
         builder
             .Services
-            .AddAuthentication()
-            // .AddAuthentication((fun sharedOptions ->
-            //     sharedOptions.DefaultScheme <- "smart"
-            //     sharedOptions.DefaultChallengeScheme <- "smart"
-            //     sharedOptions.DefaultAuthenticateScheme <- "smart"
-            // ))
-            // .AddPolicyScheme("smart", "JWT or Certificate", (fun options ->
-            //     let f (context : HttpContext) = 
-            //         let authHeader = context.Request.Headers["Authorization"].ToString()
-            //         let scheme =
-            //             if authHeader.StartsWith("Bearer ") then
-            //                 JwtBearerDefaults.AuthenticationScheme
-            //             else 
-            //                 CertificateAuthenticationDefaults.AuthenticationScheme
-            //         scheme
-            //     options.ForwardDefaultSelector <- f
-            // ))
+            // .AddAuthentication()
+            .AddAuthentication((fun sharedOptions ->
+                sharedOptions.DefaultScheme <- "smart"
+                sharedOptions.DefaultChallengeScheme <- "smart"
+                sharedOptions.DefaultAuthenticateScheme <- "smart"
+            ))
+            .AddPolicyScheme("smart", "JWT or Certificate", (fun options ->
+                let f (context : HttpContext) = 
+                    let authHeader = context.Request.Headers["Authorization"].ToString()
+                    let scheme =
+                        if authHeader.StartsWith("Bearer ") then
+                            JwtBearerDefaults.AuthenticationScheme
+                        else 
+                            CertificateAuthenticationDefaults.AuthenticationScheme
+                    scheme
+                options.ForwardDefaultSelector <- f
+            ))
             .AddJwtBearer(fun o ->
-                let k = new X509SecurityKey(jwtCert)
                 let v = new TokenValidationParameters()
                 v.ValidateIssuerSigningKey <- false
-                v.IssuerSigningKey <- k
+                v.IssuerSigningKey <- jwtCert
                 v.ValidateIssuer <- false
                 v.ValidateAudience <- false
-                v.ValidateLifetime <- false
+                v.ValidateLifetime <- true
+                v.RoleClaimType <- "groups"
                 o.TokenValidationParameters <- v
                 o.IncludeErrorDetails <- true
+                o.MapInboundClaims <- true
                 ()
             )
-            // .AddCertificate(fun u ->
-            //     u.AllowedCertificateTypes <- CertificateTypes.All
-            //     u.ChainTrustValidationMode <- X509ChainTrustMode.CustomRootTrust
-            //     u.AdditionalChainCertificates.Add(caCert)
-            //     u.CustomTrustStore.Clear()
-            //     u.CustomTrustStore.Add(caCert)
+            .AddCertificate(fun u ->
+                u.AllowedCertificateTypes <- CertificateTypes.All
+                u.ChainTrustValidationMode <- X509ChainTrustMode.CustomRootTrust
+                u.AdditionalChainCertificates.Add(caCert)
+                u.CustomTrustStore.Clear()
+                u.CustomTrustStore.Add(caCert)
 
-            //     u.RevocationMode <- X509RevocationMode.NoCheck
-            //     let events = new CertificateAuthenticationEvents()
-            //     events.OnCertificateValidated <- fun context ->
-            //         let seg = context.ClientCertificate.SubjectName.EnumerateRelativeDistinguishedNames()
-            //         let keys = seg |> Seq.map (fun x -> x.GetSingleElementType().FriendlyName, x.GetSingleElementValue()) |> Map.ofSeq
+                u.RevocationMode <- X509RevocationMode.NoCheck
+                let events = new CertificateAuthenticationEvents()
+                events.OnCertificateValidated <- fun context ->
+                    let seg = context.ClientCertificate.SubjectName.EnumerateRelativeDistinguishedNames()
+                    let keys = seg |> Seq.map (fun x -> x.GetSingleElementType().FriendlyName, x.GetSingleElementValue()) |> Map.ofSeq
 
-            //         let claims = [
-            //             new Claim(
-            //                 ClaimTypes.GroupSid,
-            //                 keys.["O"],
-            //                 ClaimValueTypes.String, context.Options.ClaimsIssuer)
-            //         ]
-            //         let identities = [new ClaimsIdentity([claims |> List.toSeq ; context.Principal.Claims ] |> Seq.concat, context.Scheme.Name)]
-            //         context.Principal <- new ClaimsPrincipal(identities)
+                    let claims = [
+                        new Claim(
+                            ClaimTypes.GroupSid,
+                            keys.["O"],
+                            ClaimValueTypes.String, context.Options.ClaimsIssuer)
+                    ]
+                    let identities = [new ClaimsIdentity([claims |> List.toSeq ; context.Principal.Claims ] |> Seq.concat, context.Scheme.Name)]
+                    context.Principal <- new ClaimsPrincipal(identities)
 
 
-            //         context.Success()
-            //         System.Threading.Tasks.Task.CompletedTask
-            //     u.Events <- events)
+                    context.Success()
+                    System.Threading.Tasks.Task.CompletedTask
+                u.Events <- events)
 
 
         builder.Services |> hosting.configureServices
@@ -152,11 +150,10 @@ module Program =
             | _ -> None
 
         // Very basic authorization, only allow system:masters group - this can be expanded to arbitrary authorization mechanisms 
-        let allowed group version kind verb (identity : ClaimsPrincipal) =
-            let isMaster = identity.Claims |> Seq.exists (fun x -> x.Type = ClaimTypes.GroupSid && x.Value = "system:masters")
+        let allowed _ _ _ verb (identity : ClaimsPrincipal) = 
             match verb with
-            | "update" -> isMaster
-            | _ -> true
+            | "write" | "delete" -> identity.IsInRole("system:masters")
+            | _ -> identity.Identity.IsAuthenticated
 
         let unauthenticated =
             RequestErrors.UNAUTHORIZED
