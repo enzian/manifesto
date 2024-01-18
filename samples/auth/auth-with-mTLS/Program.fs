@@ -22,13 +22,10 @@ module Program =
     open Microsoft.AspNetCore.Hosting
     open System.Net.Security
     open System.Net
-    open Manifesto.AspNet.api.v1
     open System.Security.Claims
     open Microsoft.IdentityModel.Tokens
-    open System.IdentityModel.Tokens.Jwt
     open Microsoft.AspNetCore.Authentication.JwtBearer
     open Microsoft.IdentityModel.Logging
-    open Microsoft.IdentityModel.JsonWebTokens
 
     let exitCode = 0
 
@@ -42,11 +39,9 @@ module Program =
         let caCert =
             X509Certificate2.CreateFromPemFile(
                 "samples/auth/auth-with-mTLS/ca.crt",
-                "samples/auth/auth-with-mTLS/ca.key"
+                "samples/auth/auth-with-mTLS/ca-key.pem"
             )
         
-        let jwtCert = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes("3vod7hstfmvcv3gjnmc4opanoj3re67l3cyk9auoq2sjaqpj"))
-
         builder.WebHost.ConfigureKestrel(fun (options: KestrelServerOptions) ->
             options.ConfigureHttpsDefaults(fun options ->
                 options.ClientCertificateMode <- ClientCertificateMode.AllowCertificate
@@ -67,7 +62,6 @@ module Program =
 
         builder
             .Services
-            // .AddAuthentication()
             .AddAuthentication((fun sharedOptions ->
                 sharedOptions.DefaultScheme <- "smart"
                 sharedOptions.DefaultChallengeScheme <- "smart"
@@ -87,7 +81,7 @@ module Program =
             .AddJwtBearer(fun o ->
                 let v = new TokenValidationParameters()
                 v.ValidateIssuerSigningKey <- false
-                v.IssuerSigningKey <- jwtCert
+                v.IssuerSigningKey <- new X509SecurityKey(caCert)
                 v.ValidateIssuer <- false
                 v.ValidateAudience <- false
                 v.ValidateLifetime <- true
@@ -118,7 +112,6 @@ module Program =
                     ]
                     let identities = [new ClaimsIdentity([claims |> List.toSeq ; context.Principal.Claims ] |> Seq.concat, context.Scheme.Name)]
                     context.Principal <- new ClaimsPrincipal(identities)
-
 
                     context.Success()
                     System.Threading.Tasks.Task.CompletedTask

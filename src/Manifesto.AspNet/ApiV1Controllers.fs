@@ -33,8 +33,6 @@ module controllers =
             let keyspace = keyspaceFactory group version typ
             let results = client.GetRange(keyspace)
 
-            let lease = client.LeaseGrant (new LeaseGrantRequest(TTL = 60))
-            
             let manifests = 
                 results.Kvs
                 |> Seq.map (
@@ -195,12 +193,6 @@ module controllers =
             with
             | :? OperationCanceledException -> 
                 ("completed" |> text |> Successful.OK) next ctx
-
-    // let notLoggedIn =
-    //     RequestErrors.UNAUTHORIZED
-    //         "Basic"
-    //         "Some Realm"
-    //         "You must be logged in."
 
     let endpoints keyspaces ttl isAuthorized =
         let mustHavePermission group version kind verb : HttpHandler = 
