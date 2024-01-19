@@ -6,7 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Measurements.fs" />
-    <Compile Include="ObservableUtilities.cs.fs" />
+    <Compile Include="ObservableUtilities.fs" />
     <Compile Include="Transport.fs" />
     <Compile Include="ProductionOrder.fs" />
     <Compile Include="Locations.fs" />

@@ -29,9 +29,23 @@ module controllers =
 
     let ManifestListHandler keyspaceFactory (group: string) (version: string) (typ: string) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->
+            let continuation = 
+                match ctx.GetQueryStringValue "continuation" |> Result.defaultValue "0" |> Int64.TryParse with
+                | (true, i) -> i
+                | (false, _) -> 0L
+            let limit = 
+                match ctx.GetQueryStringValue "limit" |> Result.defaultValue "1000" |> Int64.TryParse with
+                | (true, i) -> i
+                | (false, _) -> 1000
+            
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
-            let results = client.GetRange(keyspace)
+            let rangeQuer = new RangeRequest()
+            rangeQuer.Key <- EtcdClient.GetStringByteForRangeRequests(keyspace)
+            rangeQuer.RangeEnd <- ByteString.CopyFromUtf8(EtcdClient.GetRangeEnd(keyspace))
+            rangeQuer.Limit <- limit
+            rangeQuer.MinModRevision <- continuation
+            let results = client.Get(rangeQuer)
 
             let manifests = 
                 results.Kvs
@@ -50,8 +64,16 @@ module controllers =
                 | Ok q ->
                     let conditions = stringToConditions q
                     manifests |> Seq.filter (fun m -> matchConditions conditions (m.metadata.labels |> Option.defaultValue Map.empty))
-
-            (filteredManifests |> json) next ctx
+            
+            let nextContinuation = 
+                match (results.Kvs |> Seq.map (fun x -> x.ModRevision) |> Seq.toList) with 
+                | [] -> 0L
+                | kvs -> kvs |> Seq.max
+            
+            let resultPage = { 
+                items = filteredManifests
+                continuation = nextContinuation + 1L}
+            (resultPage |> json) next ctx
 
     let ManifestCreationHandler keyspaceFactory ttl subdocument (group: string) (version: string) (typ: string) : HttpHandler  =
         fun (next : HttpFunc) (ctx : HttpContext) ->

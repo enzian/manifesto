@@ -28,6 +28,9 @@ type Metadata =
 type Manifest = 
     abstract member metadata: Metadata
 
+type Page<'T when 'T :> Manifest> =
+    { items: 'T seq
+      continuations: int64 }
 
 type Event<'T when 'T :> Manifest> =
     | Update of 'T
@@ -50,12 +53,22 @@ let formatLabelFilter condition =
 
 type ManifestApi<'T when 'T :> Manifest> =
     abstract Get: string -> Option<'T>
-    abstract List: unit -> seq<'T>
+    abstract List: CancellationToken -> int64 -> int64 -> Page<'T>
     abstract FilterByLabel: KeyIs seq -> 'T seq
     abstract Watch: CancellationToken -> Async<IObservable<Event<'T>>>
     abstract WatchFromRevision: uint -> CancellationToken -> Async<IObservable<Event<'T>>>
     abstract Put: 'T -> Result<unit, exn>
     abstract Delete: string -> Result<unit, exn>
+
+let pageThroughAll<'T when 'T :> Manifest> (pager) startOffset limit = 
+    let rec pageThrough (offset: int64) (limit: int64) (acc: 'T seq) =
+        let page = pager offset limit
+        let newAcc = [acc ; page.items] |> Seq.concat
+        if page.continuations > 0L then
+            pageThrough (offset + limit) limit newAcc
+        else
+            newAcc
+    pageThrough startOffset limit Seq.empty
 
 let jsonOptions = new JsonSerializerOptions()
 jsonOptions.PropertyNameCaseInsensitive <- true
@@ -115,17 +128,17 @@ let fetchWithKey<'T when 'T :> Manifest> httpClient path resourceKey =
         None
 
 
-let listWithKey<'T when 'T :> Manifest> httpClient path =
+let listWithKey<'T when 'T :> Manifest> httpClient path offset limit ct : Page<'T> =
     try
-
         http {
             config_transformHttpClient (fun _ -> httpClient)
-            GET(Path.Combine(httpClient.BaseAddress.ToString(), path))
+            config_cancellationToken ct
+            GET(Path.Combine(httpClient.BaseAddress.ToString(), path) + (sprintf "?continuation=%i&limit=%i" offset limit))
         }
         |> Request.send
-        |> Response.deserializeJson<seq<'T>>
-    with _ ->
-        Seq.empty
+        |> Response.deserializeJson<Page<'T>>
+    with e ->
+        { items = Seq.empty ; continuations = 0L }
 
 let putManifest<'T> httpClient path (manifest: 'T) =
     try
@@ -170,7 +183,7 @@ let dropManifest httpClient path key =
 let ManifestsFor<'T when 'T :> Manifest> (httpClient: HttpClient) (path: string) =
     { new ManifestApi<'T> with
         member _.Get key = fetchWithKey httpClient path key
-        member _.List () = listWithKey httpClient path
+        member _.List ct offset limit = listWithKey httpClient path offset limit ct
         member _.FilterByLabel label = listWithFilter httpClient path label
         member _.Watch ct = watchResource httpClient path None ct
         member _.WatchFromRevision r cts  = watchResource httpClient path (Some r) cts

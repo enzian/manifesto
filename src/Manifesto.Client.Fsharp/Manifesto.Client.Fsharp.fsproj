@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="dotnet-etcd" Version="6.0.1" />
-    <PackageReference Include="FsHttp" Version="11.0.0" />
+    <PackageReference Include="FsHttp" Version="14.4.0" />
   </ItemGroup>
 
   <ItemGroup>

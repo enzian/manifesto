@@ -23,6 +23,11 @@ module models =
         [<JsonExtensionData()>]
         subdocuments: IDictionary<string, JsonElement>
     }
+
+    type ManifestList = {
+        items: Manifest seq
+        continuation: int64
+    }
     
     type Condition =
         | Equals of string * string
