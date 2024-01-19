@@ -61,8 +61,9 @@ let CancelTransportsForDeleteProductionOrders
     (logger: IEventLogger) = 
 
     productionEvents
-    |> filter (fun x -> match x with | Delete _ -> true | _ -> false)
-    |> switchMap (fun (Delete manifest) -> 
+    |> map (fun x -> match x with | Delete manifest -> Some manifest | _ -> None)
+    |> choose (fun x -> x)
+    |> switchMap (fun manifest -> 
         let transports = transportsApi.FilterByLabel [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
         Subject.behavior transports
     )
@@ -80,9 +81,9 @@ let UpdateProductionOrderTransports
     (logger: IEventLogger) = 
     
     productionEvents
-    |> filter (fun x -> 
-        match x with | Update _ -> true | _ -> false)
-    |> switchMap (fun (Update manifest) -> 
+    |> map (fun x -> match x with | Update manifest -> Some manifest | _ -> None)
+    |> choose (fun x -> x)
+    |> switchMap (fun manifest -> 
         let transports = transportsApi.FilterByLabel [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
         Subject.behavior (manifest, transports)
     )
@@ -113,9 +114,10 @@ let CreateTransportsForNewProductionOrders
     (logger: IEventLogger) = 
 
     productionEvents
-    |> filter (fun x -> match x with | Create _ -> true | _ -> false)
-    |> switchMap (fun (Create manifest) -> 
-        (Subject.behavior manifest) |> combineLatest (allStocks |> take 1))
+    |> map (fun x -> match x with | Create manifest -> Some manifest | _ -> None)
+    |> choose (fun x -> x)
+    |> switchMap (fun manifest -> 
+        (Subject.behavior manifest) |> withLatestFrom (fun x y -> (y, x)) (allStocks) )
     |> subscribe (fun (stocksMap, productionOrder) ->
         let bomLines = 
             productionOrder.spec.bom 

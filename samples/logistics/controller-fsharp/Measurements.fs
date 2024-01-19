@@ -21,8 +21,9 @@ let reg = new Regex(@"^([\d\.]+)(\w+)$")
 let toAmount str =
     let m = reg.Match(str)
     if m.Success then
-        let [_; digits; unitStr] = m.Groups |> Seq.map (fun x -> x.Value) |> Seq.toList
-        Amount (Quantity (int digits), Unit unitStr)
+        match (m.Groups |> Seq.map (fun x -> x.Value) |> Seq.toList) with
+        | [_; digits; unitStr] -> Amount (Quantity (int digits), Unit unitStr)
+        | _ -> failwithf "Could not parse amount: %s" str
     else
         failwithf "Could not parse amount: %s" str
 
