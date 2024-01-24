@@ -40,38 +40,47 @@ module controllers =
             
             let client = ctx.RequestServices.GetService<IEtcdClient>()
             let keyspace = keyspaceFactory group version typ
-            let rangeQuer = new RangeRequest()
-            rangeQuer.Key <- EtcdClient.GetStringByteForRangeRequests(keyspace)
-            rangeQuer.RangeEnd <- ByteString.CopyFromUtf8(EtcdClient.GetRangeEnd(keyspace))
-            rangeQuer.Limit <- limit
-            rangeQuer.MinModRevision <- continuation
-            let results = client.Get(rangeQuer)
 
-            let manifests = 
-                results.Kvs
-                |> Seq.map (
-                    fun kv ->
-                        let manifest = 
-                            kv.Value.ToByteArray() 
-                            |> System.Text.Encoding.UTF8.GetString
-                            |> JsonSerializer.Deserialize<Manifest>
-                        {manifest with metadata.revision = Some (kv.ModRevision.ToString())}
-                    )
+            let mutable manifests = Seq.empty
+            let mutable mayBeMore = true;
+            let mutable nextContinuation = continuation;
+
+            while manifests |> Seq.length < (int)limit && mayBeMore do
+                let rangeQuer = new RangeRequest()
+                rangeQuer.Key <- EtcdClient.GetStringByteForRangeRequests(keyspace)
+                rangeQuer.RangeEnd <- ByteString.CopyFromUtf8(EtcdClient.GetRangeEnd(keyspace))
+                rangeQuer.Limit <- 1000L
+                rangeQuer.MinModRevision <- nextContinuation
+                let results = client.Get(rangeQuer)
+
+                let manifestsPage = 
+                    results.Kvs
+                    |> Seq.map (
+                        fun kv ->
+                            let manifest = 
+                                kv.Value.ToByteArray() 
+                                |> System.Text.Encoding.UTF8.GetString
+                                |> JsonSerializer.Deserialize<Manifest>
+                            {manifest with metadata.revision = Some (kv.ModRevision.ToString())}
+                        )
+                
+                let filteredManifests =
+                    match ctx.GetQueryStringValue "filter" with
+                    | Error _ -> manifestsPage |> Seq.toList
+                    | Ok q ->
+                        let conditions = stringToConditions q
+                        manifestsPage |> Seq.filter (fun m -> matchConditions conditions (m.metadata.labels |> Option.defaultValue Map.empty)) |> Seq.toList
+                
+                manifests <- [manifests; filteredManifests] |> Seq.concat |> Seq.truncate (int limit)
+                mayBeMore <- results.More
+                nextContinuation <- 
+                    match (results.Kvs |> Seq.map (fun x -> x.ModRevision) |> Seq.toList) with 
+                    | [] -> 0L
+                    | kvs -> kvs |> Seq.max 
             
-            let filteredManifests =
-                match ctx.GetQueryStringValue "filter" with
-                | Error msg -> manifests
-                | Ok q ->
-                    let conditions = stringToConditions q
-                    manifests |> Seq.filter (fun m -> matchConditions conditions (m.metadata.labels |> Option.defaultValue Map.empty))
-            
-            let nextContinuation = 
-                match (results.Kvs |> Seq.map (fun x -> x.ModRevision) |> Seq.toList) with 
-                | [] -> 0L
-                | kvs -> kvs |> Seq.max
             
             let resultPage = { 
-                items = filteredManifests
+                items = manifests
                 continuation = nextContinuation + 1L}
             (resultPage |> json) next ctx
 

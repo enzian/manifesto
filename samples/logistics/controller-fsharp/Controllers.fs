@@ -64,7 +64,7 @@ let CancelTransportsForDeleteProductionOrders
     |> map (fun x -> match x with | Delete manifest -> Some manifest | _ -> None)
     |> choose (fun x -> x)
     |> switchMap (fun manifest -> 
-        let transports = transportsApi.FilterByLabel [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
+        let transports = transportsApi.FilterByLabel 0L 1000L [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
         Subject.behavior transports
     )
     |> subscribe (fun transports ->
@@ -84,7 +84,7 @@ let UpdateProductionOrderTransports
     |> map (fun x -> match x with | Update manifest -> Some manifest | _ -> None)
     |> choose (fun x -> x)
     |> switchMap (fun manifest -> 
-        let transports = transportsApi.FilterByLabel [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
+        let transports = transportsApi.FilterByLabel 0L 1000L [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
         Subject.behavior (manifest, transports)
     )
     |> subscribe (fun (productionOrder, transports) -> 
