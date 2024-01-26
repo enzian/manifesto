@@ -7,6 +7,7 @@ open System.Threading
 open System
 open System.Net.Http
 open filter
+open System.Threading.Tasks
 
 type Control.Async with
 
@@ -80,10 +81,6 @@ let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uin
             | Some r -> Path.Combine ("watch/", uri, (sprintf "?revision=%i" r)) 
             | None -> Path.Combine("watch/", uri)
         
-        let! responseSteam = client.GetStreamAsync(path, cts) |> Async.AwaitTask
-
-        let streamReader = new StreamReader(responseSteam)
-
         let rec readEvent (observer: IObserver<_>) (streamReadr: StreamReader) (cts: CancellationToken) =
             async {
                 try 
@@ -97,8 +94,25 @@ let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uin
 
         let lineReaderObservable =
             { new IObservable<_> with
-                member x.Subscribe(observer) =
-                    readEvent observer streamReader cts |> Async.StartDisposable }
+                member _.Subscribe(observer) =
+                    async {
+                        let backoff = 1000
+                        let mutable retryCount = 0
+                        while not cts.IsCancellationRequested do
+                            try
+                                let responseSteam = client.GetStreamAsync(path, cts) |> Async.AwaitTask |> Async.RunSynchronously
+                                let streamReader = new StreamReader(responseSteam)
+                                while not cts.IsCancellationRequested do
+                                    retryCount <- 0
+                                    let! line = streamReader.ReadLineAsync(cts).AsTask() |> Async.AwaitTask
+                                    observer.OnNext(line)
+                            with e ->
+                                printfn "Failed to read from watch Socket, retrying with back-off %i" (backoff * retryCount)
+                                Task.Delay(retryCount * backoff) |> Async.AwaitTask |> Async.RunSynchronously
+                                retryCount <- retryCount + 1
+                    }
+                    |> Async.StartDisposable
+            }
 
         return
             lineReaderObservable
@@ -110,7 +124,6 @@ let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uin
                 | "DELETED" -> Delete wireEvent.object
                 | _ -> Update wireEvent.object)
     }
-
 
 let fetchWithKey<'T when 'T :> Manifest> httpClient path resourceKey =
     try
@@ -127,13 +140,15 @@ let fetchWithKey<'T when 'T :> Manifest> httpClient path resourceKey =
         printfn "%A" e
         None
 
-
 let listWithKey<'T when 'T :> Manifest> httpClient path offset limit ct : Page<'T> =
     try
         http {
             config_transformHttpClient (fun _ -> httpClient)
             config_cancellationToken ct
-            GET(Path.Combine(httpClient.BaseAddress.ToString(), path) + (sprintf "?continuation=%i&limit=%i" offset limit))
+            GET(Path.Combine(httpClient.BaseAddress.ToString(), path))
+            query [
+                ("limit", limit.ToString())
+                ("continuation", offset.ToString())]
         }
         |> Request.send
         |> Response.deserializeJson<Page<'T>>
