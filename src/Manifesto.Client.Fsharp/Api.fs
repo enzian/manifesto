@@ -57,7 +57,7 @@ type ManifestApi<'T when 'T :> Manifest> =
     abstract List: CancellationToken -> int64 -> int64 -> Page<'T>
     abstract FilterByLabel: int64 -> int64 -> KeyIs seq -> 'T seq
     abstract Watch: CancellationToken -> Async<IObservable<Event<'T>>>
-    abstract WatchFromRevision: uint -> CancellationToken -> Async<IObservable<Event<'T>>>
+    abstract WatchFromRevision: int64 -> CancellationToken -> Async<IObservable<Event<'T>>>
     abstract Put: 'T -> Result<unit, exn>
     abstract Delete: string -> Result<unit, exn>
 
@@ -68,13 +68,13 @@ let pageThroughAll<'T when 'T :> Manifest> (pager) startOffset limit =
         if page.continuations > 0L then
             pageThrough (offset + limit) limit newAcc
         else
-            newAcc
+            (newAcc, page.continuations)
     pageThrough startOffset limit Seq.empty
 
 let jsonOptions = new JsonSerializerOptions()
 jsonOptions.PropertyNameCaseInsensitive <- true
 
-let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:uint option) (cts: CancellationToken) =
+let watchResource<'T when 'T :> Manifest> (client: HttpClient) uri (revision:int64 option) (cts: CancellationToken) =
     async {
         let path = 
             match revision with 

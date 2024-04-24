@@ -66,7 +66,6 @@ let (aggregatedProductionOrders, productionOrderChanges) = watchResourceOfType p
 // compare the stocks and locations to find all stocks without a proper location.
 controllers.createLocationsForPhantomStock stockApi locationsApi aggregatedLocations aggregatedStocks |> ignore
 
-// controllers.createTransportsForProduction transportsApi aggregatedProductionOrders aggreatedTransports aggregatedStocks |> ignore
 controllers.CreateTransportsForNewProductionOrders transportsApi productionOrderChanges aggregatedStocks transportCtlLogger |> ignore
 controllers.CancelTransportsForDeleteProductionOrders transportsApi productionOrderChanges transportCtlLogger |> ignore
 controllers.UpdateProductionOrderTransports transportsApi productionOrderChanges transportCtlLogger |> ignore

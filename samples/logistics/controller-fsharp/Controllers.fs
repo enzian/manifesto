@@ -18,41 +18,43 @@ let createLocationsForPhantomStock
     (allLocations: IObservable<Map<string, LocationSpecManifest>>)
     (allStocks: IObservable<Map<string, StockSpecManifest>>) = 
 
-    (Observable.combineLatest allLocations allStocks)
-        .Subscribe(
-            (fun (locs, stocks) ->
-                let locationIds = locs.Values |> Seq.map (fun x -> x.spec.Id)
+    allStocks
+    |> log "stocks changed"
+    |> withLatestFrom (fun x y -> (y, x)) (allLocations |> log "locations changed")
+    |> subscribe (
+        (fun (locs, stocks) ->
+            let locationIds = locs.Values |> Seq.map (fun x -> x.spec.Id)
 
-                let phantomStocks =
-                    stocks.Values
-                    |> Seq.filter (fun x -> locationIds |> Seq.contains x.spec.location |> not)
+            let phantomStocks =
+                stocks.Values
+                |> Seq.filter (fun x -> locationIds |> Seq.contains x.spec.location |> not)
 
-                printfn "Phantom Stocks: %A" (phantomStocks |> Seq.map (fun x -> x.metadata.name))
+            printfn "Phantom Stocks: %A" (phantomStocks |> Seq.map (fun x -> x.metadata.name))
 
-                let createLocation loc =
-                    let res = 
-                        locationsApi.Put {
-                            metadata = {
-                                name = loc
-                                ``namespace``= None
-                                labels = Some ( [
-                                    ("locations.stockr.io/autocreated","true")
-                                    ("locations.stockr.io/createdAt", DateTimeOffset.UtcNow.ToString("o"))
-                                    ] |> Map.ofSeq )
-                                annotations = None
-                                revision = None
-                            }
-                            spec = { Id = loc }
+            let createLocation loc =
+                let res = 
+                    locationsApi.Put {
+                        metadata = {
+                            name = loc
+                            ``namespace``= None
+                            labels = Some ( [
+                                ("locations.stockr.io/autocreated","true")
+                                ("locations.stockr.io/createdAt", DateTimeOffset.UtcNow.ToString("o"))
+                                ] |> Map.ofSeq )
+                            annotations = None
+                            revision = None
                         }
+                        spec = { Id = loc }
+                    }
 
-                    match res with 
-                    | Ok () -> printfn "created locations %A" loc
-                    | Error e -> printfn "failed to create location %A" e
-                    res
+                match res with 
+                | Ok () -> printfn "created locations %A" loc
+                | Error e -> printfn "failed to create location %A" e
+                res
 
-                for phantomStock in phantomStocks do
-                    createLocation phantomStock.spec.location |> ignore
-                )
+            for phantomStock in phantomStocks do
+                createLocation phantomStock.spec.location |> ignore
+            )
         )
 
 let CancelTransportsForDeleteProductionOrders 

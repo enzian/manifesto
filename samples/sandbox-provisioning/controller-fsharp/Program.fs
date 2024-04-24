@@ -22,8 +22,7 @@ let cts = new CancellationTokenSource()
 let sem = new SemaphoreSlim(0)
 
 // run the watch command that reads changes from the resource API
-let stocks = pageThroughAll (sandboxApi.List cts.Token) 0L 100L
-let stocksRevision = stocks |> mostRecentRevision
+let (stocks, stocksRevision) = pageThroughAll (sandboxApi.List cts.Token) 0L 100L
 
 let sandboxWatch =
     sandboxApi.WatchFromRevision stocksRevision cts.Token |> Async.RunSynchronously

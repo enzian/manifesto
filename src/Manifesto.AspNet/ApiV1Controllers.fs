@@ -75,11 +75,12 @@ module controllers =
                 mayBeMore <- results.More
                 nextContinuation <- 
                     match (results.Kvs |> Seq.map (fun x -> x.ModRevision) |> Seq.toList) with 
-                    | [] -> 0L
+                    | [] -> results.Header.Revision
                     | kvs -> kvs |> Seq.max 
             
             
             let resultPage = { 
+                total = manifests |> Seq.length
                 items = manifests
                 continuation = nextContinuation + 1L}
             (resultPage |> json) next ctx

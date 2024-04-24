@@ -25,6 +25,7 @@ module models =
     }
 
     type ManifestList = {
+        total: int
         items: Manifest seq
         continuation: int64
     }
