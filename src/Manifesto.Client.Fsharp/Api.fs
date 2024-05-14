@@ -55,7 +55,7 @@ let formatLabelFilter condition =
 type ManifestApi<'T when 'T :> Manifest> =
     abstract Get: string -> Option<'T>
     abstract List: CancellationToken -> int64 -> int64 -> Page<'T>
-    abstract FilterByLabel: int64 -> int64 -> KeyIs seq -> 'T seq
+    abstract FilterByLabel: int64 -> int64 -> KeyIs seq -> Page<'T>
     abstract Watch: CancellationToken -> Async<IObservable<Event<'T>>>
     abstract WatchFromRevision: int64 -> CancellationToken -> Async<IObservable<Event<'T>>>
     abstract Put: 'T -> Result<unit, exn>
@@ -182,9 +182,9 @@ let listWithFilter<'T when 'T :> Manifest> httpClient path limit continuation (k
                 ("continuation", continuation.ToString())]
         }
         |> Request.send
-        |> Response.deserializeJson<seq<'T>>
+        |> Response.deserializeJson<Page<'T>>
     with _ ->
-        Seq.empty
+        { items = Seq.empty ; continuations = 0L }
 
 let dropManifest httpClient path key =
     try
