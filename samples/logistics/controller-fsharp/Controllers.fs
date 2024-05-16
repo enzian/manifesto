@@ -67,7 +67,7 @@ let CancelTransportsForDeleteProductionOrders
     |> choose (fun x -> x)
     |> switchMap (fun manifest -> 
         let transports = transportsApi.FilterByLabel 0L 1000L [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
-        Subject.behavior transports
+        Subject.behavior transports.items
     )
     |> subscribe (fun transports ->
         for transport in transports do
@@ -87,7 +87,7 @@ let UpdateProductionOrderTransports
     |> choose (fun x -> x)
     |> switchMap (fun manifest -> 
         let transports = transportsApi.FilterByLabel 0L 1000L [ ("transports.stockr.io/production_order", Eq manifest.metadata.name) ]
-        Subject.behavior (manifest, transports)
+        Subject.behavior (manifest, transports.items)
     )
     |> subscribe (fun (productionOrder, transports) -> 
         for line in productionOrder.spec.bom do

@@ -1,9 +1,11 @@
+using System.Net;
 using System.Security.Claims;
 using dotnet_etcd;
 using dotnet_etcd.interfaces;
 using Manifesto.AspNet;
 
 var builder = WebApplication.CreateBuilder(args);
+HttpClient.DefaultProxy = new WebProxy();
 
 builder.AddManifestoV1();
 builder.Services.AddSingleton<IEtcdClient>(new EtcdClient("http://localhost:2379"));
